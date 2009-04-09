@@ -6,7 +6,7 @@
       xml:lang="en">
 
 <head>
-	<title>Build status for Ubuntu $series.fullseriesname</title>
+	<title>Build status for $series.fullseriesname</title>
 	<style type="text/css">
 		.grid { background-color:#e3e3e3;font-size:12px;font-family:verdana,sans-serif;border:none;}
 		.grid td {padding:3px;border:none;}
@@ -106,19 +106,28 @@
 			</tr>
 		</thead>
 		<tbody>
-			<tr py:for="i, pkg in enumerate(packages)" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
-				<td style="text-align:left"><a href="$pkg.url">$pkg.name</a></td>
-				<td style="text-align:left"><a href="$pkg.url2">$pkg.version</a></td>
+			<py:for each="i, pkg in enumerate(packages)">
+			<?python
+			span = len(pkg.versions)
+			?>
+			<tr py:for="j, ver in enumerate(pkg.versions.values())" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
+				
+				<td py:if="j == 0" style="text-align:left; rowspan=$span"><a href="$pkg.url">$pkg.name</a></td>
+				<td style="text-align:left">
+					<a href="$pkg.url/$ver.version">${ver.version}<py:if test="ver.pocket != 'Release'"> ($ver.pocket)</py:if></a>
+				</td>
 				<py:for each="arch in arch_list">
-					<td py:if="getattr(pkg, arch)" class="${getattr(pkg, arch)[0]}">
-						<a py:if="getattr(pkg, arch)[1]" href="${getattr(pkg, arch)[1]}">$arch (${getattr(pkg, arch)[0][0]})</a>
-						<py:if test="not getattr(pkg, arch)[1]">$arch (P)</py:if>
+					<td py:if="arch in ver.logs" class="${ver.logs[arch].buildstate}">
+						<a py:if="ver.logs[arch].buildstate != 'MANUALDEPWAIT'" href="${ver.logs[arch].log}">$arch (${ver.logs[arch].buildstate[0]})</a>
+						<a py:if="ver.logs[arch].buildstate == 'MANUALDEPWAIT'" href="${ver.logs[arch].log}" title="${ver.logs[arch].dependencies}">$arch (M)</a>
+						<py:if test="ver.logs[arch].buildstate == 'PENDING'">$arch (P)</py:if>
 					</td>
-					<td py:if="not getattr(pkg, arch)"/>
+					<td py:if="arch not in ver.logs"/>
 				</py:for>
-				<td><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
+				<td style="rowspan=$span"><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
 					<a href="http://bugs.debian.org/src:${pkg.name}">BTS</a></td>
 			</tr>
+			</py:for>
 		</tbody>
 	</table>
 
@@ -140,7 +149,7 @@
 import time
 lastupdate = time.strftime('%F %T %z')
 ?>
-	<p style="font-size:smaller">Last update: $lastupdate (updated daily at 07:00 UTC)</p>
+	<p style="font-size:smaller">Last update: $lastupdate</p>
 	<p>
 	<a href="http://validator.w3.org/check?uri=referer"><img
 		src="http://www.w3.org/Icons/valid-xhtml11-blue"

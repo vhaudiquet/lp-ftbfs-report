@@ -31,85 +31,121 @@ ubuntu = launchpad.distributions['ubuntu']
 
 active_series_list = sorted([s for s in ubuntu.series if s.active], key = lambda x: x.name)
 
-build_state = {
-		'Failed to build': 'FAILEDTOBUILD',
-		'Dependency wait': 'MANUALDEPWAIT',
-		'Chroot problem': 'CHROOTWAIT',
-		'Failed to upload': 'UPLOADFAIL',
-		'Needs building': 'PENDING',
-		}
+class SourcePackage(object):
+	class VersionInfo(object):
+		def __init__(self, spph):
+			self.version = spph.source_package_version
+			self.pocket = spph.pocket
+			self.logs = {}
 
-class PkgStat(object):
-	def __init__(self, pkg):
-		self.name = pkg.source_package_name
-		self.version = pkg.source_package_version
-		self.component = pkg.component_name
-		self.url = 'https://launchpad.net/ubuntu/%s/+source/%s' % (dev_series.name, self.version)
+		def getArch(self, arch):
+			try:
+				return self.logs[arch]
+			except KeyError:
+				return None
 
-	def __getattr__(self, attr):
-		return None
+	class BuildLog(object):
+		def __init__(self, build):
+			buildstates = {
+					'Failed to build': 'FAILEDTOBUILD',
+					'Dependency wait': 'MANUALDEPWAIT',
+					'Chroot problem': 'CHROOTWAIT',
+					'Failed to upload': 'UPLOADFAIL',
+					'Needs building': 'PENDING',
+					}
+			self.buildstate = buildstates[build.buildstate]
+							
+			if self.buildstate == 'UPLOADFAIL':
+				self.log = build.upload_log_url
+			else:
+				self.log = build.build_log_url
 
-	def empty(self, archlist = default_arch_list):
-		for arch in arch_list:
-			x = getattr(self, arch)
-			if x and x[0] != 'PENDING':
-				return False
-		return True
+			if self.buildstate == 'MANUALDEPWAIT':
+				self.dependencies = build.dependencies
 
-def fetch_pkg_list(status):
-	print "Processing '%s'" % status
+	def __init__(self, srcpkg):
+		self.name = srcpkg.source_package_name
+		self.component = srcpkg.component_name
+		self.url = 'https://launchpad.net/ubuntu/+source/%s' % self.name
+		self.versions = {}
 
-	pkg_list = dev_series.getBuildRecords(build_state = status)
+	def addBuildLog(self, buildlog):
+		spph = buildlog.current_source_publication
+		try:
+			version = self.versions[spph.source_package_version]
+		except KeyError:
+			version = self.VersionInfo(spph)
+			self.versions[version.version] = version
 
-	for pkg in pkg_list:
-		if not pkg.current_source_publication:
+		version.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
+
+	def isFTBFS(self, arch_list = default_arch_list):
+		''' Returns True if at least one FTBFS exists. '''
+		for ver in self.versions.values():
+			for arch in arch_list:
+				log = ver.getArch(arch)
+				if log and log.buildstate != 'PENDING':
+					return True
+		return False
+
+	def getCount(self, arch, state):
+		count = 0
+		for ver in self.versions.values():
+			if arch in ver.logs and ver.logs[arch].buildstate == state:
+				count += 1
+		return count
+
+def fetch_pkg_list(series, state):
+	print "Processing '%s'" % state
+
+	buildlist = series.getBuildRecords(build_state = state)
+
+	for build in buildlist:
+
+		if not build.current_source_publication:
 			# Build log for an older version
 			continue
-		print "  %s" % pkg.title
-		srcpkg = pkg.current_source_publication.source_package_name
-		version = pkg.current_source_publication.source_package_version
-		if pkg.current_source_publication.status != 'Published':
-			print "E: ", pkg.current_source_publication.status
-			continue
-		if not srcpkg in all_packages:
-			all_packages[srcpkg] = PkgStat(pkg.current_source_publication)
-		entry = all_packages[srcpkg]
-		if version == entry.version:
-			state = build_state[pkg.buildstate]
-			if state == 'UPLOADFAIL':
-				setattr(entry, pkg.arch_tag, (state, pkg.upload_log_url))
-			else:
-				setattr(entry, pkg.arch_tag, (state, pkg.build_log_url))
+
+		print "  %s" % build.title
+		srcpkg = build.current_source_publication.source_package_name
+		try:
+			entry = all_packages[srcpkg]
+		except KeyError:
+			entry = SourcePackage(build.current_source_publication)
+			all_packages[srcpkg] = entry
+		entry.addBuildLog(build)
 
 def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
 	try:
-                out = open('%s.html' % series.name, 'w')
-        except IOError:
-                return
+		out = open('%s.html' % series.name, 'w')
+	except IOError:
+		return
 
 	# split components
-        data = {}
-        for comp in ('main', 'restricted', 'universe', 'multiverse'):
-                data[comp] = [item[1] for item in sorted(all_packages.items()) if item[1].component == comp and not item[1].empty(arch_list)]
+	data = {}
+	for comp in ('main', 'restricted', 'universe', 'multiverse'):
+		data[comp] = [item for item in sorted(all_packages.values(), key = lambda x: x.name) \
+				if item.component == comp and item.isFTBFS(arch_list)]
 
 	# compute some statistics (number of packages for each build failure type)
-        stats = {}
-        for status in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
-                stats[status] = {}
-                for arch in arch_list:
-                        stats[status][arch] = len([pkg for pkg in all_packages.values() if getattr(pkg, arch) and getattr(pkg, arch)[0] == status])
-                        if stats[status][arch] == 0:
-                                stats[status][arch] = None
-        data['stats'] = stats
-        data['series'] = series
+	stats = {}
+	for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
+		stats[state] = {}
+		for arch in arch_list:
+			stats[state][arch] = sum([pkg.getCount(arch, state) for pkg in all_packages.values()])
+			if stats[state][arch] == 0:
+				stats[state][arch] = None
+
+	data['stats'] = stats
+	data['series'] = series
 	data['active_series_list'] = active_series_list
 	data['arch_list'] = arch_list
 
-        loader = genshi.template.TemplateLoader(['.'])
-        tmpl = loader.load(template)
-        stream = tmpl.generate(**data)
-        out.write(stream.render(method = 'xhtml'))
-        out.close()
+	loader = genshi.template.TemplateLoader(['.'])
+	tmpl = loader.load(template)
+	stream = tmpl.generate(**data)
+	out.write(stream.render(method = 'xhtml'))
+	out.close()
 
 if __name__ == '__main__':
 	if len(sys.argv) > 1:
@@ -124,12 +160,12 @@ if __name__ == '__main__':
 	else:
 		series_list = (ubuntu.current_series,)
 
-	for s in series_list:
-		print "Generating FTBFS for %s" % s.fullseriesname
+	for series in series_list:
+		print "Generating FTBFS for %s" % series.fullseriesname
 		
+		# Reset package list
 		all_packages = {}
 
-        #for status in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
-        #        fetch_pkg_list(status)
-        
-		generate_page(s)
+		for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
+			fetch_pkg_list(series, state)
+		generate_page(series)
