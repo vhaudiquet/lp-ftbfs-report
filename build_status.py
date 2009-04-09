@@ -25,7 +25,7 @@ credentials = Credentials()
 credentials.load(open('/home/michael/.launchpadlib/ftbfs-credentials'))
 launchpad = Launchpad(credentials, EDGE_SERVICE_ROOT, cachedir)
 
-default_archlist = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
+default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
 
 ubuntu = launchpad.distributions['ubuntu']
 
@@ -49,8 +49,8 @@ class PkgStat(object):
 	def __getattr__(self, attr):
 		return None
 
-	def empty(self, archlist = default_archlist):
-		for arch in archlist:
+	def empty(self, archlist = default_arch_list):
+		for arch in arch_list:
 			x = getattr(self, arch)
 			if x and x[0] != 'PENDING':
 				return False
@@ -81,7 +81,7 @@ def fetch_pkg_list(status):
 			else:
 				setattr(entry, pkg.arch_tag, (state, pkg.build_log_url))
 
-def generate_page(series, template = 'build_status.html', archlist = default_archlist):
+def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
 	try:
                 out = open('%s.html' % series.name, 'w')
         except IOError:
@@ -90,19 +90,20 @@ def generate_page(series, template = 'build_status.html', archlist = default_arc
 	# split components
         data = {}
         for comp in ('main', 'restricted', 'universe', 'multiverse'):
-                data[comp] = [item[1] for item in sorted(all_packages.items()) if item[1].component == comp and not item[1].empty(archlist)]
+                data[comp] = [item[1] for item in sorted(all_packages.items()) if item[1].component == comp and not item[1].empty(arch_list)]
 
 	# compute some statistics (number of packages for each build failure type)
         stats = {}
         for status in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
                 stats[status] = {}
-                for arch in archlist:
+                for arch in arch_list:
                         stats[status][arch] = len([pkg for pkg in all_packages.values() if getattr(pkg, arch) and getattr(pkg, arch)[0] == status])
                         if stats[status][arch] == 0:
                                 stats[status][arch] = None
         data['stats'] = stats
         data['series'] = series
 	data['active_series_list'] = active_series_list
+	data['arch_list'] = arch_list
 
         loader = genshi.template.TemplateLoader(['.'])
         tmpl = loader.load(template)
