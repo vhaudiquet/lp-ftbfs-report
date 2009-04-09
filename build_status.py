@@ -15,7 +15,8 @@
 
 from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
 from launchpadlib.credentials import Credentials
-import re
+from launchpadlib.errors import HTTPError
+import sys
 import genshi.template
 
 cachedir = '/home/michael/.launchpadlib/cache/'
@@ -27,9 +28,8 @@ launchpad = Launchpad(credentials, EDGE_SERVICE_ROOT, cachedir)
 default_archlist = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
 
 ubuntu = launchpad.distributions['ubuntu']
-dev_series = ubuntu.current_series
 
-all_packages = {}
+active_series_list = sorted([s for s in ubuntu.series if s.active], key = lambda x: x.name)
 
 build_state = {
 		'Failed to build': 'FAILEDTOBUILD',
@@ -81,9 +81,9 @@ def fetch_pkg_list(status):
 			else:
 				setattr(entry, pkg.arch_tag, (state, pkg.build_log_url))
 
-def generate_page(filename, template, archlist = default_archlist):
+def generate_page(series, template = 'build_status.html', archlist = default_archlist):
 	try:
-                out = open(filename, 'w')
+                out = open('%s.html' % series.name, 'w')
         except IOError:
                 return
 
@@ -101,7 +101,8 @@ def generate_page(filename, template, archlist = default_archlist):
                         if stats[status][arch] == 0:
                                 stats[status][arch] = None
         data['stats'] = stats
-        data['release'] = dev_series.name
+        data['series'] = series
+	data['active_series_list'] = active_series_list
 
         loader = genshi.template.TemplateLoader(['.'])
         tmpl = loader.load(template)
@@ -110,7 +111,24 @@ def generate_page(filename, template, archlist = default_archlist):
         out.close()
 
 if __name__ == '__main__':
-        for status in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
-                fetch_pkg_list(status)
+	if len(sys.argv) > 1:
+		series_list = []
+		for i in sys.argv[1:]:
+			try:
+				series_list.append(ubuntu.getSeries(name_or_version = i))
+			except HTTPError:
+				print 'Error: %s is not a valid name or version' % i
+		series_list.sort(key = lambda x: x.name)
+
+	else:
+		series_list = (ubuntu.current_series,)
+
+	for s in series_list:
+		print "Generating FTBFS for %s" % s.fullseriesname
+		
+		all_packages = {}
+
+        #for status in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
+        #        fetch_pkg_list(status)
         
-        generate_page('index.html', 'build_status.html')
+		generate_page(s)

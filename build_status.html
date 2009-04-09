@@ -7,11 +7,10 @@
 
 <?python
 arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
-releases = ('hardy', 'intrepid', 'jaunty')
 ?>
 
 <head>
-	<title>Build status for Ubuntu $release</title>
+	<title>Build status for Ubuntu $series.fullseriesname</title>
 	<style type="text/css">
 		.grid { background-color:#e3e3e3;font-size:12px;font-family:verdana,sans-serif;border:none;}
 		.grid td {padding:3px;border:none;}
@@ -32,7 +31,7 @@ releases = ('hardy', 'intrepid', 'jaunty')
 </head>
 
 <body>
-	<h1 id="top">Build status for Ubuntu $release</h1>
+	<h1 id="top">Build status for $series.fullseriesname</h1>
 
 	<p>Jump to: 
 		<a href="#main">main</a> (${len(main)})
@@ -43,9 +42,9 @@ releases = ('hardy', 'intrepid', 'jaunty')
 
 	<p style="font-size: smaller">
 	Other releases:
-	<py:for each="rel in releases">
-		<py:if test="rel == release">$rel</py:if>
-		<py:if test="rel != release"><a href="../buildstatus_$rel/index.html">$rel</a></py:if>
+	<py:for each="s in active_series_list">
+		<py:if test="s.name == series.name">$s.displayname</py:if>
+		<py:if test="s.name != series.name"><a href="${s.name}.html">$s.displayname</a></py:if>
 	</py:for>
 	</p>
 
