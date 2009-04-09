@@ -112,7 +112,7 @@
 			?>
 			<tr py:for="j, ver in enumerate(pkg.versions.values())" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
 				
-				<td py:if="j == 0" style="text-align:left; rowspan=$span"><a href="$pkg.url">$pkg.name</a></td>
+				<td py:if="j == 0" style="text-align:left;" rowspan="$span"><a href="$pkg.url">$pkg.name</a></td>
 				<td style="text-align:left">
 					<a href="$pkg.url/$ver.version">${ver.version}<py:if test="ver.pocket != 'Release'"> ($ver.pocket)</py:if></a>
 				</td>
@@ -124,7 +124,7 @@
 					</td>
 					<td py:if="arch not in ver.logs"/>
 				</py:for>
-				<td style="rowspan=$span"><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
+				<td py:if="j == 0" rowspan="$span"><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
 					<a href="http://bugs.debian.org/src:${pkg.name}">BTS</a></td>
 			</tr>
 			</py:for>
