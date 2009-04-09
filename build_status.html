@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+	"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xml:lang="en">
+
+<?python
+arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
+releases = ('hardy', 'intrepid', 'jaunty')
+?>
+
+<head>
+	<title>Build status for Ubuntu $release</title>
+	<style type="text/css">
+		.grid { background-color:#e3e3e3;font-size:12px;font-family:verdana,sans-serif;border:none;}
+		.grid td {padding:3px;border:none;}
+		.grid .action_cell { text-align:right; }
+		.grid THEAD { text-align:left;background-color:#f0f0f0;color:#666;}
+		.grid .heading img { float:right;margin-left:2px;margin-right:3px; } 
+		.grid .heading a { text-decoration:none;color:#333; }
+		.grid td a { text-decoration:none;color:#333}
+		.odd { background-color:#edf3fe}
+		.even { background-color:#fff}
+
+		.FAILEDTOBUILD { background-color:#cc0000}
+		.MANUALDEPWAIT { background:#ff9900}
+		.CHROOTWAIT { background:#00ccff}
+		.UPLOADFAIL { background:#00cc00}
+		.PENDING { background:gray}
+	</style>
+</head>
+
+<body>
+	<h1 id="top">Build status for Ubuntu $release</h1>
+
+	<p>Jump to: 
+		<a href="#main">main</a> (${len(main)})
+		<a href="#restricted">restricted</a> (${len(restricted)})
+		<a href="#universe">universe</a> (${len(universe)})
+		<a href="#multiverse">multiverse</a> (${len(multiverse)})
+	</p>
+
+	<p style="font-size: smaller">
+	Other releases:
+	<py:for each="rel in releases">
+		<py:if test="rel == release">$rel</py:if>
+		<py:if test="rel != release"><a href="../buildstatus_$rel/index.html">$rel</a></py:if>
+	</py:for>
+	</p>
+
+	<h2>Legend and statistics for the displayed data</h2>
+	<table class="grid" width="96%">
+		<colgroup>
+			<col width="6%" />
+			<col width="42%" />
+			<col width="6%" span="8" />
+		</colgroup>
+		<thead>
+			<tr>
+				<th colspan="2">Failure type</th>
+				<py:for each="arch in arch_list">
+					<th>$arch</th>
+				</py:for>
+			</tr>
+		</thead>
+		<tbody>
+			<tr class="even" style="text-align:center">
+				<td class="FAILEDTOBUILD">arch (F)</td>
+				<td style="text-align:left">Package failed to build</td>
+				<td py:for="arch in arch_list">${stats['FAILEDTOBUILD'].get(arch)}</td>
+			</tr>
+			<tr class="odd" style="text-align:center">
+				<td class="MANUALDEPWAIT">arch (M)</td>
+				<td style="text-align:left">Package waits on an other package</td>
+				<td py:for="arch in arch_list">${stats['MANUALDEPWAIT'].get(arch)}</td>
+			</tr>
+			<tr class="even" style="text-align:center">
+				<td class="CHROOTWAIT">arch (C)</td>
+				<td style="text-align:left">Failure in the chroot</td>
+				<td py:for="arch in arch_list">${stats['CHROOTWAIT'].get(arch)}</td>
+			</tr>
+			<tr class="odd" style="text-align:center">
+				<td class="UPLOADFAIL">arch (B)</td>
+				<td style="text-align:left">Failed to upload</td>
+				<td py:for="arch in arch_list">${stats['UPLOADFAIL'].get(arch)}</td>
+			</tr>
+			<tr class="even" style="text-align:center">
+				<td class="PENDING">arch (P)</td>
+				<td style="text-align:left">Needs building (only shown where there is a failure on another arch)</td>
+				<td py:for="arch in arch_list">${stats['PENDING'].get(arch)}</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<table py:def="table(packages)" py:if="packages" class="grid" width="100%">
+		<colgroup>
+			<col width="24%" />
+			<col width="24%" />
+			<col width="6%" span="8" />
+			<col width="4%" />
+		</colgroup>
+		<thead>
+			<tr>
+				<th>Package</th>
+				<th>Version</th>
+				<py:for each="arch in arch_list">
+					<th>$arch</th>
+				</py:for>
+				<th />
+			</tr>
+		</thead>
+		<tbody>
+			<tr py:for="i, pkg in enumerate(packages)" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
+				<td style="text-align:left"><a href="$pkg.url">$pkg.name</a></td>
+				<td style="text-align:left"><a href="$pkg.url2">$pkg.version</a></td>
+				<py:for each="arch in arch_list">
+					<td py:if="getattr(pkg, arch)" class="${getattr(pkg, arch)[0]}">
+						<a py:if="getattr(pkg, arch)[1]" href="${getattr(pkg, arch)[1]}">$arch (${getattr(pkg, arch)[0][0]})</a>
+						<py:if test="not getattr(pkg, arch)[1]">$arch (P)</py:if>
+					</td>
+					<td py:if="not getattr(pkg, arch)"/>
+				</py:for>
+				<td><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
+					<a href="http://bugs.debian.org/src:${pkg.name}">BTS</a></td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="main">main: ${len(main)} packages (<a href="#top">top</a>)</h2>
+	${table(main)}
+
+	<h2 id="restricted">restricted: ${len(restricted)} packages (<a href="#top">top</a>)</h2>
+	${table(restricted)}
+
+	<h2 id="universe">universe: ${len(universe)} packages (<a href="#top">top</a>)</h2>
+	${table(universe)}
+
+	<h2 id="multiverse">multiverse: ${len(multiverse)} packages (<a href="#top">top</a>)</h2>
+	${table(multiverse)}
+
+	<hr/>
+
+<?python
+import time
+lastupdate = time.strftime('%F %T %z')
+?>
+	<p style="font-size:smaller">Last update: $lastupdate (updated daily at 07:00 UTC)</p>
+	<p>
+	<a href="http://validator.w3.org/check?uri=referer"><img
+		src="http://www.w3.org/Icons/valid-xhtml11-blue"
+		alt="Valid XHTML 1.1" height="31" width="88"
+		style="border-width:0px" /></a>
+	</p>
+	<p style="font-size:smaller"><a href="source">source</a></p>
+</body>
+</html>
