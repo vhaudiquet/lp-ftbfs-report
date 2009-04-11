@@ -11,22 +11,42 @@
 
 # Requirements:
 # - python-launchpadlib
+# - python-apt
 # - python-genshi
 
 from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
+from launchpadlib.resource import Entry
 from launchpadlib.credentials import Credentials
 from launchpadlib.errors import HTTPError
 import sys, os
+import apt_pkg
 import genshi.template
 
 default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
+apt_pkg.InitSystem()
 
 class SourcePackage(object):
+	class VersionList(list):
+		def __getitem__(self, item):
+			if isinstance(item, Entry):
+				# A source_package_publishing_history object (hopefully)
+				ver_list = [ver for ver in self if ver.version == item.source_package_version]
+				if ver_list:
+					return ver_list[0]
+				else:
+					version = SourcePackage.VersionInfo(item)
+					self.append(version)
+					# keep the version list sorted
+					self.sort(key = lambda x: x.version, cmp = apt_pkg.VersionCompare)
+					return version
+			else:
+				return self[item]
+
 	class VersionInfo(object):
 		def __init__(self, spph):
 			self.version = spph.source_package_version
 			self.pocket = spph.pocket
-			self.logs = {}
+			self.logs = dict()
 
 		def getArch(self, arch):
 			try:
@@ -57,24 +77,16 @@ class SourcePackage(object):
 		self.name = srcpkg.source_package_name
 		self.component = srcpkg.component_name
 		self.url = 'https://launchpad.net/ubuntu/+source/%s' % self.name
-		self.versions = {}
+		self.versions = self.VersionList()
 
 	def addBuildLog(self, buildlog):
 		spph = buildlog.current_source_publication
-		try:
-			version = self.versions[spph.source_package_version]
-		except KeyError:
-			version = self.VersionInfo(spph)
-			self.versions[version.version] = version
-			# keep the version list sorted
-			# TODO: do proper version sorting
-			self.versions.sort(key = lambda x: x.version)
-
+		version = self.versions[spph]
 		version.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
 
 	def isFTBFS(self, arch_list = default_arch_list):
 		''' Returns True if at least one FTBFS exists. '''
-		for ver in self.versions.values():
+		for ver in self.versions:
 			for arch in arch_list:
 				log = ver.getArch(arch)
 				if log and log.buildstate != 'PENDING':
@@ -83,7 +95,7 @@ class SourcePackage(object):
 
 	def getCount(self, arch, state):
 		count = 0
-		for ver in self.versions.values():
+		for ver in self.versions:
 			if arch in ver.logs and ver.logs[arch].buildstate == state:
 				count += 1
 		return count
@@ -94,7 +106,6 @@ def fetch_pkg_list(series, state):
 	buildlist = series.getBuildRecords(build_state = state)
 
 	for build in buildlist:
-
 		if not build.current_source_publication:
 			# Build log for an older version
 			continue

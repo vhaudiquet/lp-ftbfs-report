@@ -110,7 +110,7 @@
 			<?python
 			span = len(pkg.versions)
 			?>
-			<tr py:for="j, ver in enumerate(pkg.versions.values())" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
+			<tr py:for="j, ver in enumerate(pkg.versions)" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
 				
 				<td py:if="j == 0" style="text-align:left;" rowspan="$span"><a href="$pkg.url">$pkg.name</a></td>
 				<td style="text-align:left">
