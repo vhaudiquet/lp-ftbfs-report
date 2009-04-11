@@ -16,20 +16,10 @@
 from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
 from launchpadlib.credentials import Credentials
 from launchpadlib.errors import HTTPError
-import sys
+import sys, os
 import genshi.template
 
-cachedir = '/home/michael/.launchpadlib/cache/'
-
-credentials = Credentials()
-credentials.load(open('/home/michael/.launchpadlib/ftbfs-credentials'))
-launchpad = Launchpad(credentials, EDGE_SERVICE_ROOT, cachedir)
-
 default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
-
-ubuntu = launchpad.distributions['ubuntu']
-
-active_series_list = sorted([s for s in ubuntu.series if s.active], key = lambda x: x.name)
 
 class SourcePackage(object):
 	class VersionInfo(object):
@@ -76,6 +66,9 @@ class SourcePackage(object):
 		except KeyError:
 			version = self.VersionInfo(spph)
 			self.versions[version.version] = version
+			# keep the version list sorted
+			# TODO: do proper version sorting
+			self.versions.sort(key = lambda x: x.version)
 
 		version.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
 
@@ -147,7 +140,37 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 	out.write(stream.render(method = 'xhtml'))
 	out.close()
 
+def lp_login():
+	cachedir = os.path.expanduser('~/.cache/launchpadlib/')
+	if not os.path.isdir(cachedir):
+		os.makedirs(cachedir)
+
+	creddir = os.path.expanduser("~/.cache/lp_credentials")
+	if not os.path.isdir(creddir):
+		os.makedirs(creddir)
+		os.chmod(creddir, 0700)
+
+	# load stored LP credentials
+	try:
+		credfile = open(os.path.join(creddir, 'qa-ftbfs.txt'), 'r')
+		credentials = Credentials()
+		credentials.load(credfile)
+		credfile.close()
+		launchpad = Launchpad(credentials, EDGE_SERVICE_ROOT, cachedir)
+	except IOError:
+		launchpad = Launchpad.get_token_and_login('qa-ftbfs', EDGE_SERVICE_ROOT, cachedir)
+		credfile = open(os.path.join(creddir, 'qa-ftbfs.txt'), 'w')
+		launchpad.credentials.save(credfile)
+		credfile.close()
+
+	return launchpad
+
 if __name__ == '__main__':
+	launchpad = lp_login()
+
+	ubuntu = launchpad.distributions['ubuntu']
+	active_series_list = sorted([s for s in ubuntu.series if s.active], key = lambda x: x.name)
+
 	if len(sys.argv) > 1:
 		series_list = []
 		for i in sys.argv[1:]:
