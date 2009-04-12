@@ -121,7 +121,7 @@ def fetch_pkg_list(series, state):
 
 def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
 	try:
-		out = open('%s.html' % series.name, 'w')
+		out = open('../%s.html' % series.name, 'w')
 	except IOError:
 		return
 
