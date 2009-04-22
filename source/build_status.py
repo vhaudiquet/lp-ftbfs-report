@@ -14,6 +14,9 @@
 # - python-apt
 # - python-genshi
 
+#import httplib2
+#httplib2.debuglevel = 1
+
 from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
 from launchpadlib.resource import Entry
 from launchpadlib.credentials import Credentials
@@ -79,8 +82,7 @@ class SourcePackage(object):
 		self.url = 'https://launchpad.net/ubuntu/+source/%s' % self.name
 		self.versions = self.VersionList()
 
-	def addBuildLog(self, buildlog):
-		spph = buildlog.current_source_publication
+	def addBuildLog(self, buildlog, spph):
 		version = self.versions[spph]
 		version.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
 
@@ -106,18 +108,19 @@ def fetch_pkg_list(series, state):
 	buildlist = series.getBuildRecords(build_state = state)
 
 	for build in buildlist:
-		if not build.current_source_publication:
+		csp = build.current_source_publication
+		if not csp:
 			# Build log for an older version
 			continue
 
 		print "  %s" % build.title
-		srcpkg = build.current_source_publication.source_package_name
+		srcpkg = csp.source_package_name
 		try:
 			entry = all_packages[srcpkg]
 		except KeyError:
-			entry = SourcePackage(build.current_source_publication)
+			entry = SourcePackage(csp)
 			all_packages[srcpkg] = entry
-		entry.addBuildLog(build)
+		entry.addBuildLog(build, csp)
 
 def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
 	try:
