@@ -118,7 +118,7 @@
 				</td>
 				<py:for each="arch in arch_list">
 					<td py:if="arch in ver.logs" class="${ver.logs[arch].buildstate}">
-						<a py:if="ver.logs[arch].buildstate != 'MANUALDEPWAIT'" href="${ver.logs[arch].log}">$arch (${ver.logs[arch].buildstate[0]})</a>
+						<a py:if="ver.logs[arch].buildstate not in ('MANUALDEPWAIT', 'PENDING')" href="${ver.logs[arch].log}">$arch (${ver.logs[arch].buildstate[0]})</a>
 						<a py:if="ver.logs[arch].buildstate == 'MANUALDEPWAIT'" href="${ver.logs[arch].log}" title="${ver.logs[arch].dependencies}">$arch (M)</a>
 						<py:if test="ver.logs[arch].buildstate == 'PENDING'">$arch (P)</py:if>
 					</td>

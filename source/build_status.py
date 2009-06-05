@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
-# (C) 2007-2009 Michael Bienia <geser@ubuntu.com>
+# Copyright © 2007-2009 Michael Bienia <geser@ubuntu.com>
 # Authors:
 # Michael Bienia <geser@ubuntu.com>
 # License:
@@ -25,7 +25,7 @@ import sys, os
 import apt_pkg
 import genshi.template
 
-default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia', 'hppa')
+default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia')
 apt_pkg.InitSystem()
 
 class SourcePackage(object):
@@ -139,7 +139,7 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 	for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
 		stats[state] = {}
 		for arch in arch_list:
-			stats[state][arch] = sum([pkg.getCount(arch, state) for pkg in all_packages.values()])
+			stats[state][arch] = sum([pkg.getCount(arch, state) for pkg in all_packages.values() if pkg.isFTBFS()])
 			if stats[state][arch] == 0:
 				stats[state][arch] = None
 
@@ -203,6 +203,7 @@ if __name__ == '__main__':
 		# Reset package list
 		all_packages = {}
 
+		# 'Needs building' makes it really run long, so not included in the status to fetch
 		for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
 			fetch_pkg_list(series, state)
 		generate_page(series)
