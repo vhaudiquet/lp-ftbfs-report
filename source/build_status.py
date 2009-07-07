@@ -4,6 +4,7 @@
 # Copyright © 2007-2009 Michael Bienia <geser@ubuntu.com>
 # Authors:
 # Michael Bienia <geser@ubuntu.com>
+# Andrea Gasparini <gaspa@yattaweb.it>
 # License:
 # GPLv2 (or later), see /usr/share/common-licenses/GPL
 
@@ -154,6 +155,18 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 	out.write(stream.render(method = 'xhtml'))
 	out.close()
 
+def generate_csvfile(series, arch_list = default_arch_list):
+	csvout = open('../%s.csv' % series.name, 'w')
+	linetemplate = '%(name)s,%(link)s,%(explain)s\n'
+	for pkg in all_packages.values():
+		for ver in pkg.versions:
+			for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
+				archs = [ arch for (arch, log) in ver.logs.items() if log.buildstate == state ]
+				if archs:
+					log = ver.logs[archs[0]].log
+					csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
+						'explain':"[%s] %s" %(','.join(archs), state)})
+
 def lp_login():
 	cachedir = os.path.expanduser('~/.cache/launchpadlib/')
 	if not os.path.isdir(cachedir):
@@ -206,4 +219,7 @@ if __name__ == '__main__':
 		# 'Needs building' makes it really run long, so not included in the status to fetch
 		for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
 			fetch_pkg_list(series, state)
+		print "Generating HTML page..."
 		generate_page(series)
+		print "Generating CSV file..."
+		generate_csvfile(series)
