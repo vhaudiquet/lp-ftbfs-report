@@ -49,7 +49,7 @@ class _PersonTeam(object):
                         raise TypeError('A LP API person or team representation expected.')
 
         def __str__(self):
-                return '%s (%s)' % (self._personteam.display_name, self._personteam.name)
+                return u'%s (%s)' % (self._personteam.display_name, self._personteam.name)
 
         def __getattr__(self, attr):
                 return getattr(self._personteam, attr)
@@ -109,7 +109,7 @@ class SourcePackage(object):
 			'''
 			Returns a string with the person who changed this package.
 			'''
-			return 'Changed-By: %s' % (self.changed_by)
+			return u'Changed-By: %s' % (self.changed_by)
 
 	class BuildLog(object):
 		def __init__(self, build):
