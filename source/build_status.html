@@ -7,6 +7,7 @@
 
 <head>
 	<title>Build status for $series.fullseriesname</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 	<style type="text/css">
 		.grid { background-color:#e3e3e3;font-size:12px;font-family:verdana,sans-serif;border:none;}
 		.grid td {padding:3px;border:none;}
@@ -114,7 +115,7 @@
 				
 				<td py:if="j == 0" style="text-align:left;" rowspan="$span"><a href="$pkg.url">$pkg.name</a></td>
 				<td style="text-align:left">
-					<a href="$pkg.url/$ver.version">${ver.version}<py:if test="ver.pocket != 'Release'"> ($ver.pocket)</py:if></a>
+					<a href="$pkg.url/$ver.version" title="${ver.getChangedBy()}">${ver.version}<py:if test="ver.pocket != 'Release'"> ($ver.pocket)</py:if></a>
 				</td>
 				<py:for each="arch in arch_list">
 					<td py:if="arch in ver.logs" class="${ver.logs[arch].buildstate}">

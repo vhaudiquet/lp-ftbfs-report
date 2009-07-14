@@ -15,6 +15,7 @@
 # - python-apt
 # - python-genshi
 
+# Uncomment for tracing LP API calls
 #import httplib2
 #httplib2.debuglevel = 1
 
@@ -28,6 +29,50 @@ import genshi.template
 
 default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia')
 apt_pkg.InitSystem()
+
+# copied from ubuntu-dev-tools, lpapiwrapper.py:
+class _PersonTeam(object):
+        '''
+        Wrapper class around a LP person or team object.
+        '''
+
+        _cache = dict() # Key is the LP API person/team URL
+
+        def __init__(self, personteam):
+                if isinstance(personteam, Entry) and personteam.resource_type_link in \
+                                ('https://api.edge.launchpad.net/beta/#person', 'https://api.edge.launchpad.net/beta/#team'):
+                        self._personteam = personteam
+                        # Add ourself to the cache
+                        if personteam.self_link not in self._cache:
+                                self._cache[personteam.self_link] = self
+                else:
+                        raise TypeError('A LP API person or team representation expected.')
+
+        def __str__(self):
+                return '%s (%s)' % (self._personteam.display_name, self._personteam.name)
+
+        def __getattr__(self, attr):
+                return getattr(self._personteam, attr)
+
+        @classmethod
+        def getPersonTeam(cls, name):
+                '''
+                Return a _PersonTeam object for the LP user 'name'.
+
+                'name' can be a LP id or a LP API URL for that person or team.
+                '''
+
+                if name in cls._cache:
+                        # 'name' is a LP API URL
+                        return cls._cache[name]
+                else:
+                        if not name.startswith('http'):
+                                # Check if we've cached the 'name' already
+                                for personteam in cls._cache.values():
+                                        if personteam.name == name:
+                                                return personteam
+
+                        return _PersonTeam(launchpad.people[name])
 
 class SourcePackage(object):
 	class VersionList(list):
@@ -51,12 +96,20 @@ class SourcePackage(object):
 			self.version = spph.source_package_version
 			self.pocket = spph.pocket
 			self.logs = dict()
+			self.changed_by = _PersonTeam.getPersonTeam(spph.package_creator_link)
+			#self.signed_by = spph.package_signer_link and _PersonTeam.getPersonTeam(spph.package_signer_link)
 
 		def getArch(self, arch):
 			try:
 				return self.logs[arch]
 			except KeyError:
 				return None
+
+		def getChangedBy(self):
+			'''
+			Returns a string with the person who changed this package.
+			'''
+			return 'Changed-By: %s' % (self.changed_by)
 
 	class BuildLog(object):
 		def __init__(self, build):
