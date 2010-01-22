@@ -30,7 +30,7 @@ import sys, os
 import apt_pkg
 import genshi.template
 
-default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia')
+default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64')
 apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, lpapiapicache.py:
@@ -76,7 +76,13 @@ class PersonTeam(object):
                                         if personteam.name == name:
                                                 return personteam
 
-                        return PersonTeam(launchpad.people[name])
+                        try:
+                                return PersonTeam(launchpad.people[name])
+                        except HTTPError, e:
+                                if e.response.status == 410:
+                                        return None
+                                else:
+                                        raise
 
 class SourcePackage(object):
 	class VersionList(list):
