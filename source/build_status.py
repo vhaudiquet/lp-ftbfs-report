@@ -30,8 +30,9 @@ import genshi.template
 default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64', 'lpia')
 apt_pkg.InitSystem()
 
-# copied from ubuntu-dev-tools, lpapiwrapper.py:
-class _PersonTeam(object):
+# copied from ubuntu-dev-tools, lpapiapicache.py:
+# TODO: use lpapicache from u-d-t
+class PersonTeam(object):
         '''
         Wrapper class around a LP person or team object.
         '''
@@ -57,7 +58,7 @@ class _PersonTeam(object):
         @classmethod
         def getPersonTeam(cls, name):
                 '''
-                Return a _PersonTeam object for the LP user 'name'.
+                Return a PersonTeam object for the LP user 'name'.
 
                 'name' can be a LP id or a LP API URL for that person or team.
                 '''
@@ -72,44 +73,49 @@ class _PersonTeam(object):
                                         if personteam.name == name:
                                                 return personteam
 
-                        return _PersonTeam(launchpad.people[name])
+                        return PersonTeam(launchpad.people[name])
 
 class SourcePackage(object):
 	class VersionList(list):
-		def __getitem__(self, item):
-			if isinstance(item, Entry):
-				# A source_package_publishing_history object (hopefully)
-				ver_list = [ver for ver in self if ver.version == item.source_package_version]
-				if ver_list:
-					return ver_list[0]
-				else:
-					version = SourcePackage.VersionInfo(item)
-					self.append(version)
-					# keep the version list sorted
-					self.sort(key = lambda x: x.version, cmp = apt_pkg.VersionCompare)
-					return version
-			else:
-				return self[item]
+		def append(self, item):
+			super(SourcePackage.VersionList, self).append(item)
+			self.sort(key = lambda x: x.version, cmp = apt_pkg.VersionCompare)
 
-	class VersionInfo(object):
-		def __init__(self, spph):
-			self.version = spph.source_package_version
-			self.pocket = spph.pocket
-			self.logs = dict()
-			self.changed_by = _PersonTeam.getPersonTeam(spph.package_creator_link)
-			#self.signed_by = spph.package_signer_link and _PersonTeam.getPersonTeam(spph.package_signer_link)
+	def __init__(self, srcpkg):
+		self.name = srcpkg.source_package_name
+		self.component = srcpkg.component_name
+		self.url = 'https://launchpad.net/ubuntu/+source/%s' % self.name
+		self.versions = self.VersionList()
+		all_packages[self.name] = self
 
-		def getArch(self, arch):
-			try:
-				return self.logs[arch]
-			except KeyError:
-				return None
+	def isFTBFS(self, arch_list = default_arch_list):
+		''' Returns True if at least one FTBFS exists. '''
+		for ver in self.versions:
+			for arch in arch_list:
+				log = ver.getArch(arch)
+				if log and log.buildstate != 'PENDING':
+					return True
+		return False
 
-		def getChangedBy(self):
-			'''
-			Returns a string with the person who changed this package.
-			'''
-			return u'Changed-By: %s' % (self.changed_by)
+	def getCount(self, arch, state):
+		count = 0
+		for ver in self.versions:
+			if arch in ver.logs and ver.logs[arch].buildstate == state:
+				count += 1
+		return count
+
+class SPPH(object):
+	def __init__(self, spph_link):
+		self.spph = launchpad.load(spph_link)
+		self.logs = dict()
+		self.version = self.spph.source_package_version
+		self.pocket = self.spph.pocket
+		self.changed_by = PersonTeam.getPersonTeam(self.spph.package_creator_link)
+		#self.signed_by = spph.package_signer_link and PersonTeam.getPersonTeam(self.spph.package_signer_link)
+		self.srcpkg = all_packages.get(self.spph.source_package_name)
+		if not self.srcpkg:
+			self.srcpkg = SourcePackage(self.spph)
+		self.srcpkg.versions.append(self)
 
 	class BuildLog(object):
 		def __init__(self, build):
@@ -130,31 +136,18 @@ class SourcePackage(object):
 			if self.buildstate == 'MANUALDEPWAIT':
 				self.dependencies = build.dependencies
 
-	def __init__(self, srcpkg):
-		self.name = srcpkg.source_package_name
-		self.component = srcpkg.component_name
-		self.url = 'https://launchpad.net/ubuntu/+source/%s' % self.name
-		self.versions = self.VersionList()
+	def addBuildLog(self, buildlog):
+		self.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
 
-	def addBuildLog(self, buildlog, spph):
-		version = self.versions[spph]
-		version.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
+	def getArch(self, arch):
+		return self.logs.get(arch)
 
-	def isFTBFS(self, arch_list = default_arch_list):
-		''' Returns True if at least one FTBFS exists. '''
-		for ver in self.versions:
-			for arch in arch_list:
-				log = ver.getArch(arch)
-				if log and log.buildstate != 'PENDING':
-					return True
-		return False
+	def getChangedBy(self):
+		'''
+		Returns a string with the person who changed this package.
+		'''
+		return u'Changed-By: %s' % (self.changed_by)
 
-	def getCount(self, arch, state):
-		count = 0
-		for ver in self.versions:
-			if arch in ver.logs and ver.logs[arch].buildstate == state:
-				count += 1
-		return count
 
 def fetch_pkg_list(series, state):
 	print "Processing '%s'" % state
@@ -162,19 +155,17 @@ def fetch_pkg_list(series, state):
 	buildlist = series.getBuildRecords(build_state = state)
 
 	for build in buildlist:
-		csp = build.current_source_publication
-		if not csp:
+		csp_link = build.current_source_publication_link
+		if not csp_link:
 			# Build log for an older version
 			continue
 
 		print "  %s" % build.title
-		srcpkg = csp.source_package_name
-		try:
-			entry = all_packages[srcpkg]
-		except KeyError:
-			entry = SourcePackage(csp)
-			all_packages[srcpkg] = entry
-		entry.addBuildLog(build, csp)
+
+		spph = all_spph.get(csp_link)
+		if not spph:
+			spph = all_spph[csp_link] = SPPH(csp_link)
+		spph.addBuildLog(build)
 
 def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
 	try:
@@ -267,11 +258,13 @@ if __name__ == '__main__':
 		print "Generating FTBFS for %s" % series.fullseriesname
 		
 		# Reset package list
-		all_packages = {}
+		all_packages = dict()
+		all_spph = dict()
 
 		# 'Needs building' makes it really run long, so not included in the status to fetch
 		for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
 			fetch_pkg_list(series, state)
+
 		print "Generating HTML page..."
 		generate_page(series)
 		print "Generating CSV file..."
