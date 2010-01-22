@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
-# Copyright © 2007-2009 Michael Bienia <geser@ubuntu.com>
+# Copyright © 2007-2010 Michael Bienia <geser@ubuntu.com>
 # Authors:
 # Michael Bienia <geser@ubuntu.com>
 # Andrea Gasparini <gaspa@yattaweb.it>
@@ -20,7 +20,10 @@
 #httplib2.debuglevel = 1
 
 from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
-from launchpadlib.resource import Entry
+try:
+	from launchpadlib.resource import Entry
+except ImportError:
+	from lazr.restfulclient.resource import Entry
 from launchpadlib.credentials import Credentials
 from launchpadlib.errors import HTTPError
 import sys, os
