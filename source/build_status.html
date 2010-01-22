@@ -8,26 +8,11 @@
 <head>
 	<title>Build status for $series.fullseriesname</title>
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-	<style type="text/css">
-		.grid { background-color:#e3e3e3;font-size:12px;font-family:verdana,sans-serif;border:none;}
-		.grid td {padding:3px;border:none;}
-		.grid .action_cell { text-align:right; }
-		.grid THEAD { text-align:left;background-color:#f0f0f0;color:#666;}
-		.grid .heading img { float:right;margin-left:2px;margin-right:3px; } 
-		.grid .heading a { text-decoration:none;color:#333; }
-		.grid td a { text-decoration:none;color:#333;display:block;}
-		.odd { background-color:#edf3fe}
-		.even { background-color:#fff}
-
-		.FAILEDTOBUILD { background-color:#cc0000}
-		.MANUALDEPWAIT { background:#ff9900}
-		.CHROOTWAIT { background:#00ccff}
-		.UPLOADFAIL { background:#00cc00}
-		.PENDING { background:gray}
-	</style>
+	<link rel="stylesheet" type="text/css" href="source/style.css" />
 </head>
 
 <body>
+	<script type="text/javascript" src="source/wz_tooltip.js"></script>
 	<h1 id="top">Build status for $series.fullseriesname</h1>
 
 	<p>Jump to: 
@@ -50,7 +35,7 @@
 		<colgroup>
 			<col width="6%" />
 			<col width="42%" />
-			<col width="7%" span="7" />
+			<col width="8%" span="${len(arch_list)}" />
 		</colgroup>
 		<thead>
 			<tr>
@@ -93,8 +78,8 @@
 		<colgroup>
 			<col width="24%" />
 			<col width="24%" />
-			<col width="7%" span="7" />
-			<col width="3%" />
+			<col width="8%" span="${len(arch_list)}" />
+			<col width="4%" />
 		</colgroup>
 		<thead>
 			<tr>
@@ -114,16 +99,17 @@
 			<tr py:for="j, ver in enumerate(pkg.versions)" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
 				
 				<td py:if="j == 0" style="text-align:left;" rowspan="$span"><a href="$pkg.url">$pkg.name</a></td>
-				<td style="text-align:left">
-					<a href="$pkg.url/$ver.version" title="${ver.getChangedBy()}">${ver.version}<py:if test="ver.pocket != 'Release'"> ($ver.pocket)</py:if></a>
+				<td style="text-align:left" onmouseover="Tip('${ver.getChangedBy()}')" onmouseout="UnTip()">
+					<a href="$pkg.url/$ver.version">${ver.version}<py:if test="ver.pocket != 'Release'"> ($ver.pocket)</py:if></a>
 				</td>
 				<py:for each="arch in arch_list">
-					<td py:if="arch in ver.logs" class="${ver.logs[arch].buildstate}">
-						<a py:if="ver.logs[arch].buildstate not in ('MANUALDEPWAIT', 'PENDING')" href="${ver.logs[arch].log}">$arch (${ver.logs[arch].buildstate[0]})</a>
-						<a py:if="ver.logs[arch].buildstate == 'MANUALDEPWAIT'" href="${ver.logs[arch].log}" title="${ver.logs[arch].dependencies}">$arch (M)</a>
+				<td py:if="arch in ver.logs" class="${ver.logs[arch].buildstate}"
+					onmouseover="Tip('${ver.logs[arch].tooltip}')" onmouseout="UnTip()">
+						<a py:if="ver.logs[arch].buildstate != 'PENDING'" href="${ver.logs[arch].url}">$arch (${ver.logs[arch].buildstate[0]})</a>
+						<a py:if="ver.logs[arch].buildstate != 'PENDING'" href="${ver.logs[arch].log}">&rarr;&nbsp;Log</a>
 						<py:if test="ver.logs[arch].buildstate == 'PENDING'">$arch (P)</py:if>
-					</td>
-					<td py:if="arch not in ver.logs"/>
+				</td>
+				<td py:if="arch not in ver.logs"/>
 				</py:for>
 				<td py:if="j == 0" rowspan="$span"><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
 					<a href="http://bugs.debian.org/src:${pkg.name}">BTS</a></td>

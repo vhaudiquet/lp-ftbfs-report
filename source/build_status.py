@@ -33,6 +33,10 @@ import genshi.template
 default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64')
 apt_pkg.InitSystem()
 
+# copied from ubuntu-dev-tools, libsupport.py:
+def translate_api_web(self_url):
+    return self_url.replace("api.", "").replace("beta/", "")
+
 # copied from ubuntu-dev-tools, lpapiapicache.py:
 # TODO: use lpapicache from u-d-t
 class PersonTeam(object):
@@ -136,6 +140,7 @@ class SPPH(object):
 					'Needs building': 'PENDING',
 					}
 			self.buildstate = buildstates[build.buildstate]
+			self.url = translate_api_web(build.self_link)
 							
 			if self.buildstate == 'UPLOADFAIL':
 				self.log = build.upload_log_url
@@ -143,7 +148,9 @@ class SPPH(object):
 				self.log = build.build_log_url
 
 			if self.buildstate == 'MANUALDEPWAIT':
-				self.dependencies = build.dependencies
+				self.tooltip = 'waits on %s' % build.dependencies
+			else:
+				self.tooltip = 'Build finished on %s' % build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')
 
 	def addBuildLog(self, buildlog):
 		self.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
