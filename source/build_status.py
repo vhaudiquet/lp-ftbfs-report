@@ -35,7 +35,7 @@ apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
-    return self_url.replace("api.", "").replace("beta/", "")
+    return self_url.replace("api.", "").replace("beta/", "").replace("edge.", "")
 
 # copied from ubuntu-dev-tools, lpapiapicache.py:
 # TODO: use lpapicache from u-d-t
@@ -143,9 +143,9 @@ class SPPH(object):
 			self.url = translate_api_web(build.self_link)
 							
 			if self.buildstate == 'UPLOADFAIL':
-				self.log = build.upload_log_url
+				self.log = translate_api_web(build.upload_log_url)
 			else:
-				self.log = build.build_log_url
+				self.log = translate_api_web(build.build_log_url)
 
 			if self.buildstate == 'MANUALDEPWAIT':
 				self.tooltip = 'waits on %s' % build.dependencies
