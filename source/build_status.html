@@ -66,11 +66,13 @@
 				<td style="text-align:left">Failed to upload</td>
 				<td py:for="arch in arch_list">${stats['UPLOADFAIL'].get(arch)}</td>
 			</tr>
+			<!-- !
 			<tr class="even" style="text-align:center">
 				<td class="PENDING">arch (P)</td>
 				<td style="text-align:left">Needs building (only shown where there is a failure on another arch)</td>
 				<td py:for="arch in arch_list">${stats['PENDING'].get(arch)}</td>
 			</tr>
+			-->
 		</tbody>
 	</table>
 
