@@ -194,14 +194,31 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 		data[comp] = [item for item in sorted(all_packages.values(), key = lambda x: x.name) \
 				if item.component == comp and item.isFTBFS(arch_list)]
 
+	# container object to hold the counts and the tooltip
+	class StatData(object):
+		def __init__(self, cnt, tooltip):
+			self.cnt = cnt
+			self.tooltip = tooltip
+
 	# compute some statistics (number of packages for each build failure type)
 	stats = {}
 	for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
 		stats[state] = {}
 		for arch in arch_list:
-			stats[state][arch] = sum([pkg.getCount(arch, state) for pkg in all_packages.values() if pkg.isFTBFS()])
-			if stats[state][arch] == 0:
-				stats[state][arch] = None
+			tooltip = []
+			cnt = 0
+			for comp in ('main', 'restricted', 'universe', 'multiverse'):
+				s = sum([pkg.getCount(arch, state) for pkg in data[comp]])
+				if s:
+					cnt += s
+					tooltip.append('<td>%s:</td><td style="text-align:right;">%i</td>' % (comp, s))
+			if cnt:
+				tooltiphtml = u'<table><tr>'
+				tooltiphtml += u'</tr><tr>'.join(tooltip)
+				tooltiphtml += u'</tr></table>'
+				stats[state][arch] = StatData(cnt, tooltiphtml)
+			else:
+				stats[state][arch] = StatData(None, None)
 
 	data['stats'] = stats
 	data['series'] = series

@@ -49,28 +49,53 @@
 			<tr class="even" style="text-align:center">
 				<td class="FAILEDTOBUILD">arch (F)</td>
 				<td style="text-align:left">Package failed to build</td>
-				<td py:for="arch in arch_list">${stats['FAILEDTOBUILD'].get(arch)}</td>
+				<py:for each="arch in arch_list">
+				<td py:if="stats['FAILEDTOBUILD'][arch].cnt"
+					onmouseover="Tip('${stats['FAILEDTOBUILD'][arch].tooltip}')"
+					onmouseout="UnTip()">${stats['FAILEDTOBUILD'][arch].cnt}</td>
+				<td py:if="not stats['FAILEDTOBUILD'][arch].cnt" />
+				</py:for>
 			</tr>
 			<tr class="odd" style="text-align:center">
 				<td class="MANUALDEPWAIT">arch (M)</td>
 				<td style="text-align:left">Package is waiting on another package</td>
-				<td py:for="arch in arch_list">${stats['MANUALDEPWAIT'].get(arch)}</td>
+				<py:for each="arch in arch_list">
+				<td py:if="stats['MANUALDEPWAIT'][arch].cnt"
+					onmouseover="Tip('${stats['MANUALDEPWAIT'][arch].tooltip}')"
+					onmouseout="UnTip()">${stats['MANUALDEPWAIT'][arch].cnt}</td>
+				<td py:if="not stats['MANUALDEPWAIT'][arch].cnt" />
+				</py:for>
 			</tr>
 			<tr class="even" style="text-align:center">
 				<td class="CHROOTWAIT">arch (C)</td>
 				<td style="text-align:left">Failure in the chroot</td>
-				<td py:for="arch in arch_list">${stats['CHROOTWAIT'].get(arch)}</td>
+				<py:for each="arch in arch_list">
+				<td py:if="stats['CHROOTWAIT'][arch].cnt"
+					onmouseover="Tip('${stats['CHROOTWAIT'][arch].tooltip}')"
+					onmouseout="UnTip()">${stats['CHROOTWAIT'][arch].cnt}</td>
+				<td py:if="not stats['CHROOTWAIT'][arch].cnt" />
+				</py:for>
 			</tr>
 			<tr class="odd" style="text-align:center">
 				<td class="UPLOADFAIL">arch (U)</td>
 				<td style="text-align:left">Failed to upload</td>
-				<td py:for="arch in arch_list">${stats['UPLOADFAIL'].get(arch)}</td>
+				<py:for each="arch in arch_list">
+				<td py:if="stats['UPLOADFAIL'][arch].cnt"
+					onmouseover="Tip('${stats['UPLOADFAIL'][arch].tooltip}')"
+					onmouseout="UnTip()">${stats['UPLOADFAIL'][arch].cnt}</td>
+				<td py:if="not stats['UPLOADFAIL'][arch].cnt" />
+				</py:for>
 			</tr>
 			<!-- !
 			<tr class="even" style="text-align:center">
 				<td class="PENDING">arch (P)</td>
 				<td style="text-align:left">Needs building (only shown where there is a failure on another arch)</td>
-				<td py:for="arch in arch_list">${stats['PENDING'].get(arch)}</td>
+				<py:for each="arch in arch_list">
+				<td py:if="stats['PENDING'][arch].cnt"
+					onmouseover="Tip('${stats['PENDING'][arch].tooltip}')"
+					onmouseout="UnTip()">${stats['PENDING'][arch].cnt}</td>
+				<td py:if="not stats['PENDING'][arch].cnt" />
+				</py:for>
 			</tr>
 			-->
 		</tbody>
