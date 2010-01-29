@@ -19,12 +19,11 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
-from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
+from launchpadlib.launchpad import Launchpad
 try:
 	from launchpadlib.resource import Entry
 except ImportError:
 	from lazr.restfulclient.resource import Entry
-from launchpadlib.credentials import Credentials
 from launchpadlib.errors import HTTPError
 import sys, os
 import apt_pkg
@@ -48,7 +47,7 @@ class PersonTeam(object):
 
         def __init__(self, personteam):
                 if isinstance(personteam, Entry) and personteam.resource_type_link in \
-                                ('https://api.edge.launchpad.net/beta/#person', 'https://api.edge.launchpad.net/beta/#team'):
+                                ('https://api.launchpad.net/beta/#person', 'https://api.launchpad.net/beta/#team'):
                         self._personteam = personteam
                         # Add ourself to the cache
                         if personteam.self_link not in self._cache:
@@ -141,7 +140,7 @@ class SPPH(object):
 					}
 			self.buildstate = buildstates[build.buildstate]
 			self.url = translate_api_web(build.self_link)
-							
+
 			if self.buildstate == 'UPLOADFAIL':
 				self.log = translate_api_web(build.upload_log_url)
 			else:
@@ -232,23 +231,12 @@ def lp_login():
 	if not os.path.isdir(cachedir):
 		os.makedirs(cachedir)
 
-	creddir = os.path.expanduser("~/.cache/lp_credentials")
-	if not os.path.isdir(creddir):
-		os.makedirs(creddir)
-		os.chmod(creddir, 0700)
-
-	# load stored LP credentials
-	try:
-		credfile = open(os.path.join(creddir, 'qa-ftbfs.txt'), 'r')
-		credentials = Credentials()
-		credentials.load(credfile)
-		credfile.close()
-		launchpad = Launchpad(credentials, EDGE_SERVICE_ROOT, cachedir)
-	except IOError:
-		launchpad = Launchpad.get_token_and_login('qa-ftbfs', EDGE_SERVICE_ROOT, cachedir)
-		credfile = open(os.path.join(creddir, 'qa-ftbfs.txt'), 'w')
-		launchpad.credentials.save(credfile)
-		credfile.close()
+	# login anonymously to LP
+	if hasattr(Launchpad, 'login_anonymously'):
+		launchpad = Launchpad.login_anonymously('qa-ftbfs', 'production')
+	else:
+		LPNET_SERVICE_ROOT = 'https://api.launchpad.net/beta/'
+		launchpad = Launchpad.login('qa-ftbfs', '', '', LPNET_SERVICE_ROOT)
 
 	return launchpad
 
@@ -272,7 +260,7 @@ if __name__ == '__main__':
 
 	for series in series_list:
 		print "Generating FTBFS for %s" % series.fullseriesname
-		
+
 		# Reset package list
 		all_packages = dict()
 		all_spph = dict()
