@@ -28,7 +28,12 @@ from launchpadlib.errors import HTTPError
 import sys, os
 import apt_pkg
 import genshi.template
+try:
+	from launchpadlib.uris import *
+except ImportError:
+	lookup_service_root = lambda u: 'https://api.launchpad.net/beta/' if u == 'production' else 'https://api.edge.launchpad.net/beta/'
 
+lp_service = 'edge'
 default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64')
 apt_pkg.InitSystem()
 
@@ -43,11 +48,12 @@ class PersonTeam(object):
         Wrapper class around a LP person or team object.
         '''
 
+	resource_type = (lookup_service_root(lp_service) + '#person',
+			lookup_service_root(lp_service) + '#team')
         _cache = dict() # Key is the LP API person/team URL
 
         def __init__(self, personteam):
-                if isinstance(personteam, Entry) and personteam.resource_type_link in \
-                                ('https://api.launchpad.net/beta/#person', 'https://api.launchpad.net/beta/#team'):
+		if isinstance(personteam, Entry) and personteam.resource_type_link in self.resource_type:
                         self._personteam = personteam
                         # Add ourself to the cache
                         if personteam.self_link not in self._cache:
@@ -250,10 +256,9 @@ def lp_login():
 
 	# login anonymously to LP
 	if hasattr(Launchpad, 'login_anonymously'):
-		launchpad = Launchpad.login_anonymously('qa-ftbfs', 'production')
+		launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service)
 	else:
-		LPNET_SERVICE_ROOT = 'https://api.launchpad.net/beta/'
-		launchpad = Launchpad.login('qa-ftbfs', '', '', LPNET_SERVICE_ROOT)
+		launchpad = Launchpad.login('qa-ftbfs', '', '', lookup_service_root(lp_service))
 
 	return launchpad
 
