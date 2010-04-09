@@ -6,28 +6,20 @@
       xml:lang="en">
 
 <head>
-	<title>Build status for $series.fullseriesname</title>
+	<title>Build status for $series.fullseriesname in $archive.displayname</title>
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 	<link rel="stylesheet" type="text/css" href="source/style.css" />
 </head>
 
 <body>
 	<script type="text/javascript" src="source/wz_tooltip.js"></script>
-	<h1 id="top">Build status for $series.fullseriesname</h1>
+	<h1 id="top">Build status for $series.fullseriesname in $archive.displayname</h1>
 
 	<p>Jump to: 
 		<a href="#main">main</a> (${len(main)})
 		<a href="#restricted">restricted</a> (${len(restricted)})
 		<a href="#universe">universe</a> (${len(universe)})
 		<a href="#multiverse">multiverse</a> (${len(multiverse)})
-	</p>
-
-	<p style="font-size: smaller">
-	Other releases:
-	<py:for each="s in active_series_list">
-		<py:if test="s.name == series.name">$s.displayname</py:if>
-		<py:if test="s.name != series.name"><a href="${s.name}.html">$s.displayname</a></py:if>
-	</py:for>
 	</p>
 
 	<h2>Legend and statistics for the displayed data</h2>
@@ -157,6 +149,17 @@
 	<h2 id="multiverse">multiverse: ${len(multiverse)} packages (<a href="#top">top</a>)</h2>
 	${table(multiverse)}
 
+	<h2 id="main_superseded">main (superseded): ${len(main_superseded)} packages (<a href="#top">top</a>)</h2>
+	${table(main_superseded)}
+
+	<h2 id="restricted_superseded">restricted (superseded): ${len(restricted_superseded)} packages (<a href="#top">top</a>)</h2>
+	${table(restricted_superseded)}
+
+	<h2 id="universe_superseded">universe (superseded): ${len(universe_superseded)} packages (<a href="#top">top</a>)</h2>
+	${table(universe_superseded)}
+
+	<h2 id="multiverse_superseded">multiverse (superseded): ${len(multiverse_superseded)} packages (<a href="#top">top</a>)</h2>
+	${table(multiverse_superseded)}
 	<hr/>
 
 <?python

@@ -19,7 +19,7 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
-from launchpadlib.launchpad import Launchpad
+from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
 try:
 	from launchpadlib.resource import Entry
 except ImportError:
@@ -106,9 +106,11 @@ class SourcePackage(object):
 		self.versions = self.VersionList()
 		all_packages[self.name] = self
 
-	def isFTBFS(self, arch_list = default_arch_list):
+	def isFTBFS(self, arch_list = default_arch_list, current = True):
 		''' Returns True if at least one FTBFS exists. '''
 		for ver in self.versions:
+			if ver.current != current:
+				continue
 			for arch in arch_list:
 				log = ver.getArch(arch)
 				if log and log.buildstate != 'PENDING':
@@ -214,9 +216,9 @@ def fetch_pkg_list(archive, series, state, main_archive=None):
 			print "    superseded"
 		spph.addBuildLog(build)
 
-def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
+def generate_page(archive, series, template = 'build_status.html', arch_list = default_arch_list):
 	try:
-		out = open('../%s.html' % series.name, 'w')
+		out = open('../%s-%s.html' % (archive.name, series.name), 'w')
 	except IOError:
 		return
 
@@ -224,12 +226,15 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 	data = {}
 	for comp in ('main', 'restricted', 'universe', 'multiverse'):
 		data[comp] = [item for item in sorted(all_packages.values(), key = lambda x: x.name) \
-				if item.component == comp and item.isFTBFS(arch_list)]
+				if item.component == comp and item.isFTBFS(arch_list, True)]
+		data['%s_superseded' % comp] = [item for item in sorted(all_packages.values(), key = lambda x: x.name) \
+				if item.component == comp and item.isFTBFS(arch_list, False)]
 
 	# container object to hold the counts and the tooltip
 	class StatData(object):
-		def __init__(self, cnt, tooltip):
+		def __init__(self, cnt, cnt_superseded, tooltip):
 			self.cnt = cnt
+			self.cnt_superseded = cnt_superseded
 			self.tooltip = tooltip
 
 	# compute some statistics (number of packages for each build failure type)
@@ -239,22 +244,25 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 		for arch in arch_list:
 			tooltip = []
 			cnt = 0
+			cnt_sup = 0
 			for comp in ('main', 'restricted', 'universe', 'multiverse'):
 				s = sum([pkg.getCount(arch, state) for pkg in data[comp]])
-				if s:
+				s_sup = sum([pkg.getCount(arch, state) for pkg in data['%s_superseded' % comp]])
+				if s or s_sup:
 					cnt += s
-					tooltip.append('<td>%s:</td><td style="text-align:right;">%i</td>' % (comp, s))
+					cnt_sup += s_sup
+					tooltip.append('<td>%s:</td><td style="text-align:right;">%i (%i superseded)</td>' % (comp, s, s_sup))
 			if cnt:
 				tooltiphtml = u'<table><tr>'
 				tooltiphtml += u'</tr><tr>'.join(tooltip)
 				tooltiphtml += u'</tr></table>'
-				stats[state][arch] = StatData(cnt, tooltiphtml)
+				stats[state][arch] = StatData(cnt, cnt_sup, tooltiphtml)
 			else:
-				stats[state][arch] = StatData(None, None)
+				stats[state][arch] = StatData(None, None, None)
 
 	data['stats'] = stats
+	data['archive'] = archive
 	data['series'] = series
-	data['active_series_list'] = active_series_list
 	data['arch_list'] = arch_list
 
 	loader = genshi.template.TemplateLoader(['.'])
@@ -263,8 +271,8 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 	out.write(stream.render(method = 'xhtml'))
 	out.close()
 
-def generate_csvfile(series, arch_list = default_arch_list):
-	csvout = open('../%s.csv' % series.name, 'w')
+def generate_csvfile(archive, series, arch_list = default_arch_list):
+	csvout = open('../%s-%s.csv' % (archive.name, series.name), 'w')
 	linetemplate = '%(name)s,%(link)s,%(explain)s\n'
 	for pkg in all_packages.values():
 		for ver in pkg.versions:
@@ -299,7 +307,7 @@ if __name__ == '__main__':
 	except HTTPError:
 		print 'Error: %s is not a valid archive.' % sys.argv[1]
 	try:
-		series = ubuntu.getSeries(sys.argv[2])
+		series = ubuntu.getSeries(name_or_version=sys.argv[2])
 	except HTTPError:
         	print 'Error: %s is not a valid series.' % sys.argv[2]
 
