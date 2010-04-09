@@ -134,6 +134,7 @@ class SPPH(object):
 		if not self.srcpkg:
 			self.srcpkg = SourcePackage(self.spph)
 		self.srcpkg.versions.append(self)
+		self.current = None
 
 	class BuildLog(object):
 		def __init__(self, build):
@@ -170,10 +171,15 @@ class SPPH(object):
 		return u'Changed-By: %s' % (self.changed_by)
 
 
-def fetch_pkg_list(series, state):
+def fetch_pkg_list(archive, series, state, main_archive=None):
 	print "Processing '%s'" % state
 
-	buildlist = series.getBuildRecords(build_state = state)
+	# XXX wgrant 2009-09-19: This is an awful hack. We should really
+	# just let IArchive.getBuildRecords take a series argument.
+	if archive.name == 'primary':
+		buildlist = series.getBuildRecords(build_state = state)
+	else:
+		buildlist = archive.getBuildRecords(build_state = state)
 
 	for build in buildlist:
 		csp_link = build.current_source_publication_link
@@ -186,6 +192,26 @@ def fetch_pkg_list(series, state):
 		spph = all_spph.get(csp_link)
 		if not spph:
 			spph = all_spph[csp_link] = SPPH(csp_link)
+
+		if spph.current is None:
+			# If a main archive is specified, we check if the current source
+			# is still published there. If it isn't, then it's out of date.
+			# We should make this obvious.
+			# The main archive will normally be the primary archive, and
+			# probably only makes sense if the target archive is a rebuild.
+			if main_archive:
+				main_publications = main_archive.getPublishedSources(
+					distro_series=series,
+					exact_match=True,
+					source_name=spph.spph.source_package_name,
+					version=spph.spph.source_package_version,
+					status='Published')
+			spph.current = len(main_publications[:1]) > 0
+		else:
+			spph.current = True
+
+		if not spph.current:
+			print "    superseded"
 		spph.addBuildLog(build)
 
 def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
@@ -266,21 +292,21 @@ if __name__ == '__main__':
 	launchpad = lp_login()
 
 	ubuntu = launchpad.distributions['ubuntu']
-	active_series_list = sorted([s for s in ubuntu.series if s.active], key = lambda x: x.name)
+	assert len(sys.argv) == 3
 
-	if len(sys.argv) > 1:
-		series_list = []
-		for i in sys.argv[1:]:
-			try:
-				series_list.append(ubuntu.getSeries(name_or_version = i))
-			except HTTPError:
-				print 'Error: %s is not a valid name or version' % i
-		series_list.sort(key = lambda x: x.name)
+	try:
+		archive = launchpad.load(EDGE_SERVICE_ROOT + 'ubuntu/+archive/' + sys.argv[1])
+	except HTTPError:
+		print 'Error: %s is not a valid archive.' % sys.argv[1]
+	try:
+		series = ubuntu.getSeries(sys.argv[2])
+	except HTTPError:
+        	print 'Error: %s is not a valid series.' % sys.argv[2]
 
-	else:
-		series_list = (ubuntu.current_series,)
+	if archive.name != 'primary':
+		main_archive = ubuntu.main_archive
 
-	for series in series_list:
+	for (archive, series) in [(archive, series)]:
 		print "Generating FTBFS for %s" % series.fullseriesname
 
 		# Reset package list
@@ -289,9 +315,9 @@ if __name__ == '__main__':
 
 		# 'Needs building' makes it really run long, so not included in the status to fetch
 		for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
-			fetch_pkg_list(series, state)
+			fetch_pkg_list(archive, series, state, main_archive)
 
 		print "Generating HTML page..."
-		generate_page(series)
+		generate_page(archive, series)
 		print "Generating CSV file..."
-		generate_csvfile(series)
+		generate_csvfile(archive, series)
