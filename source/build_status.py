@@ -31,15 +31,16 @@ import genshi.template
 try:
 	from launchpadlib.uris import *
 except ImportError:
-	lookup_service_root = lambda u: 'https://api.launchpad.net/beta/' if u == 'production' else 'https://api.edge.launchpad.net/beta/'
+	lookup_service_root = lambda u: 'https://api.launchpad.net/' if u == 'production' else 'https://api.edge.launchpad.net/'
 
 lp_service = 'edge'
+api_version = 'beta'
 default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64')
 apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
-    return self_url.replace("api.", "").replace("beta/", "").replace("edge.", "")
+    return self_url.replace("api.", "").replace("%s/" % api_version, "").replace("edge.", "")
 
 # copied from ubuntu-dev-tools, lpapiapicache.py:
 # TODO: use lpapicache from u-d-t
@@ -48,8 +49,8 @@ class PersonTeam(object):
         Wrapper class around a LP person or team object.
         '''
 
-	resource_type = (lookup_service_root(lp_service) + '#person',
-			lookup_service_root(lp_service) + '#team')
+	resource_type = (lookup_service_root(lp_service) + api_version + '/#person',
+			lookup_service_root(lp_service) + api_version + '/#team')
         _cache = dict() # Key is the LP API person/team URL
 
         def __init__(self, personteam):
@@ -139,10 +140,10 @@ class SPPH(object):
 		def __init__(self, build):
 			buildstates = {
 					'Failed to build': 'FAILEDTOBUILD',
-					'Dependency wait': 'MANUALDEPWAIT',
-					'Chroot problem': 'CHROOTWAIT',
-					'Failed to upload': 'UPLOADFAIL',
-					'Needs building': 'PENDING',
+					'Could not build because of missing dependencies': 'MANUALDEPWAIT',
+					'Could not build because of chroot problem': 'CHROOTWAIT',
+					'Could not be uploaded correctly': 'UPLOADFAIL',
+					'Pending build': 'PENDING',
 					}
 			self.buildstate = buildstates[build.buildstate]
 			self.url = translate_api_web(build.self_link)
@@ -287,8 +288,9 @@ if __name__ == '__main__':
 		all_packages = dict()
 		all_spph = dict()
 
-		# 'Needs building' makes it really run long, so not included in the status to fetch
-		for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
+		# 'Pending build' makes it really run long, so not included in the status to fetch
+		for state in ('Failed to build', 'Could not build because of missing dependencies',
+				'Could not build because of chroot problem', 'Could not be uploaded correctly'):
 			fetch_pkg_list(series, state)
 
 		print "Generating HTML page..."
