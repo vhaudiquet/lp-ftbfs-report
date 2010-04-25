@@ -34,7 +34,7 @@ except ImportError:
 	lookup_service_root = lambda u: 'https://api.launchpad.net/beta/' if u == 'production' else 'https://api.edge.launchpad.net/beta/'
 
 lp_service = 'edge'
-default_arch_list = ('i386', 'amd64', 'sparc', 'powerpc', 'armel', 'ia64')
+default_arch_list = ('i386', 'amd64')
 apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
