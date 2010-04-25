@@ -208,9 +208,9 @@ def fetch_pkg_list(archive, series, state, main_archive=None):
 					source_name=spph.spph.source_package_name,
 					version=spph.spph.source_package_version,
 					status='Published')
-			spph.current = len(main_publications[:1]) > 0
-		else:
-			spph.current = True
+				spph.current = len(main_publications[:1]) > 0
+			else:
+				spph.current = True
 
 		if not spph.current:
 			print "    superseded"
