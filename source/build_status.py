@@ -140,9 +140,9 @@ class SPPH(object):
         def __init__(self, build):
             buildstates = {
                     'Failed to build': 'FAILEDTOBUILD',
-                    'Could not build because of missing dependencies': 'MANUALDEPWAIT',
-                    'Could not build because of chroot problem': 'CHROOTWAIT',
-                    'Could not be uploaded correctly': 'UPLOADFAIL',
+                    'Dependency wait': 'MANUALDEPWAIT',
+                    'Chroot problem': 'CHROOTWAIT',
+                    'Failed to upload': 'UPLOADFAIL',
                     'Pending build': 'PENDING',
                     }
             self.buildstate = buildstates[build.buildstate]
@@ -289,8 +289,7 @@ if __name__ == '__main__':
         all_spph = dict()
 
         # 'Pending build' makes it really run long, so not included in the status to fetch
-        for state in ('Failed to build', 'Could not build because of missing dependencies',
-                'Could not build because of chroot problem', 'Could not be uploaded correctly'):
+        for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
             fetch_pkg_list(series, state)
 
         print "Generating HTML page..."
