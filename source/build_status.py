@@ -20,18 +20,12 @@
 #httplib2.debuglevel = 1
 
 from launchpadlib.launchpad import Launchpad
-try:
-    from launchpadlib.resource import Entry
-except ImportError:
-    from lazr.restfulclient.resource import Entry
+from lazr.restfulclient.resource import Entry
 from launchpadlib.errors import HTTPError
 import sys, os
 import apt_pkg
 import genshi.template
-try:
-    from launchpadlib.uris import *
-except ImportError:
-    lookup_service_root = lambda u: 'https://api.launchpad.net/' if u == 'production' else 'https://api.edge.launchpad.net/'
+from launchpadlib.uris import *
 
 lp_service = 'edge'
 api_version = 'beta'
@@ -256,10 +250,7 @@ def lp_login():
         os.makedirs(cachedir)
 
     # login anonymously to LP
-    if hasattr(Launchpad, 'login_anonymously'):
-        launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service)
-    else:
-        launchpad = Launchpad.login('qa-ftbfs', '', '', lookup_service_root(lp_service))
+    launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service)
 
     return launchpad
 
