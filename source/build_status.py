@@ -137,7 +137,7 @@ class SPPH(object):
                     'Dependency wait': 'MANUALDEPWAIT',
                     'Chroot problem': 'CHROOTWAIT',
                     'Failed to upload': 'UPLOADFAIL',
-                    'Pending build': 'PENDING',
+                    'Needs building': 'PENDING',
                     }
             self.buildstate = buildstates[build.buildstate]
             self.url = translate_api_web(build.self_link)
@@ -165,7 +165,7 @@ class SPPH(object):
         return u'Changed-By: %s' % (self.changed_by)
 
 
-def fetch_pkg_list(series, state):
+def fetch_pkg_list(series, state, arch_list=default_arch_list):
     print "Processing '%s'" % state
 
     buildlist = series.getBuildRecords(build_state = state)
@@ -174,6 +174,10 @@ def fetch_pkg_list(series, state):
         csp_link = build.current_source_publication_link
         if not csp_link:
             # Build log for an older version
+            continue
+
+        if build.arch_tag not in arch_list:
+            print "  Skipping %s" % build.title
             continue
 
         print "  %s" % build.title
