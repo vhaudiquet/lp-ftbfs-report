@@ -31,17 +31,17 @@
 	</p>
 
 	<h2>Legend and statistics for the displayed data</h2>
-	<table class="grid" width="95%">
+	<table class="grid" width="94%">
 		<colgroup>
 			<col width="6%" />
 			<col width="44%" />
-			<col width="9%" span="${len(arch_list)}" />
+			<col width="11%" span="${len(arch_list)}" />
 		</colgroup>
 		<thead>
 			<tr>
 				<th colspan="2" rowspan="2">Failure type</th>
 				<th colspan="2" class="center">Main archive</th>
-				<th colspan="3" class="center">Ports archive</th>
+				<th colspan="2" class="center">Ports archive</th>
 			</tr>
 			<tr>
 				<py:for each="arch in arch_list">
@@ -109,15 +109,15 @@
 		<colgroup>
 			<col width="25%" />
 			<col width="25%" />
-			<col width="9%" span="${len(arch_list)}" />
-			<col width="5%" />
+			<col width="11%" span="${len(arch_list)}" />
+			<col width="6%" />
 		</colgroup>
 		<thead>
 			<tr>
 				<th rowspan="2">Package</th>
 				<th rowspan="2">Version</th>
 				<th colspan="2" class="center">Main archive</th>
-				<th colspan="3" class="center">Ports archive</th>
+				<th colspan="2" class="center">Ports archive</th>
 				<th rowspan="2"/>
 			</tr>
 			<tr>

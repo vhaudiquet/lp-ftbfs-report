@@ -29,7 +29,7 @@ from launchpadlib.uris import *
 
 lp_service = 'edge'
 api_version = '1.0'
-default_arch_list = ('i386', 'amd64', 'armel', 'powerpc', 'ia64')
+default_arch_list = ('i386', 'amd64', 'armel', 'powerpc')
 apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
