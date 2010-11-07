@@ -1,183 +1,173 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
-	"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:py="http://genshi.edgewall.org/"
-      xml:lang="en">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+{#- Macro definitions -#}
+{% macro legend_row(row_class, field, field_desc) -%}
+    <tr class="{{ row_class }}" style="text-align: center;">
+        <td class="{{ field }}">arch ({{ field[0] }})</td>
+        <td style="text-align: left;">{{ field_desc }}</td>
+        {% for arch in arch_list -%}
+            {% if stats[field][arch].cnt -%}
+                <td onmouseover="Tip('{{ stats[field][arch].tooltip|e }}')"
+                    onmouseout="UnTip()">
+                    {{ stats[field][arch].cnt }}
+                </td>
+            {% else -%}
+                <td />
+            {% endif -%}
+        {%- endfor %}
+    </tr>
+{%- endmacro %}
+
+{% macro table(packages) -%}
+    {% if packages|count > 0 -%}
+        <table class="grid" width="100%">
+            <colgroup>
+                <col width="25%" />
+                <col width="25%" />
+                <col width="11%" span="{{ arch_list|count }}" />
+                <col width="6%" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th rowspan="2">Package</th>
+                    <th rowspan="2">Version</th>
+                    <th colspan="2" class="center">Main archive</th>
+                    <th colspan="2" class="center">Ports archive</th>
+                    <th rowspan="2"/>
+                </tr>
+                <tr>
+                    {% for arch in arch_list -%}
+                        <th class="center">{{ arch }}</th>
+                    {%- endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for pkg in packages -%}
+                    {% set pkg_loop = loop -%}
+                    {% for ver in pkg.versions -%}
+                        <tr class="{{ pkg_loop.cycle('odd', 'even') }}" style="text-align: center;">
+                            {% if loop.first -%}
+                                <td style="text-align: left;" rowspan="{{ pkg.versions|count }}">
+                                    <a href="{{ pkg.url }}">{{ pkg.name }}</a>
+                                </td>
+                            {%- endif %}
+                            <td style="text-align: left;" onmouseover="Tip('{{ ver.getChangedBy()|e }}')" onmouseout="UnTip()">
+                                <a href="{{ pkg.url }}/{{ ver.version }}">{{ ver.version }}
+                                    {%- if ver.pocket != 'Release' %}{{ ver.pocket }}{% endif -%}
+                                </a>
+                            </td>
+                            {% for arch in arch_list -%}
+                                {% if arch in ver.logs -%}
+                                    <td class="{{ ver.logs[arch].buildstate }}"
+                                        onmouseover="Tip('{{ ver.logs[arch].tooltip|e }}')" onmouseout="UnTip()">
+                                        {% if ver.logs[arch].buildstate != 'PENDING' -%}
+                                            <a href="{{ ver.logs[arch].url }}">{{ arch }} ({{ ver.logs[arch].buildstate[0] }})</a>
+                                            &rarr;
+                                            <a href="{{ ver.logs[arch].log }}">Log</a>
+                                        {% else -%}
+                                            {{ arch }} (P)
+                                        {%- endif %}
+                                    </td>
+                                {% else -%}
+                                    <td />
+                                {%- endif %}
+                            {%- endfor %}
+                            {% if loop.first -%}
+                                <td rowspan="{{ pkg.versions|count }}">
+                                    <a href="http://packages.qa.debian.org/{{ pkg.name }}">PTS</a>
+                                    <a href="http://bugs.debian.org/src:{{ pkg.name }}">BTS</a>
+                                </td>
+                            {%- endif %}
+                        </tr>
+                    {%- endfor %}
+                {%- endfor %}
+            </tbody>
+        </table>
+    {%- endif %}
+{%- endmacro %}
+
+{#- Main template -#}
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 
 <head>
-	<title>Build status for $series.fullseriesname</title>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-	<link rel="stylesheet" type="text/css" href="source/style.css" />
+    <title>Build status for {{ series.fullseriesname }}</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="source/style.css" />
 </head>
 
 <body>
-	<script type="text/javascript" src="source/wz_tooltip.js"></script>
-	<h1 id="top">Build status for $series.fullseriesname</h1>
+    <script type="text/javascript" src="source/wz_tooltip.js"></script>
+    <h1 id="top">Build status for {{ series.fullseriesname }}</h1>
 
-	<p>Jump to: 
-		<a href="#main">main</a> (${len(main)})
-		<a href="#restricted">restricted</a> (${len(restricted)})
-		<a href="#universe">universe</a> (${len(universe)})
-		<a href="#multiverse">multiverse</a> (${len(multiverse)})
-	</p>
+    <p>Jump to:
+        <a href="#main">main</a> ({{ main|count }})
+        <a href="#restricted">restricted</a> ({{ restricted|count }})
+        <a href="#universe">universe</a> ({{ universe|count }})
+        <a href="#multiverse">multiverse</a> ({{ multiverse|count }})
+    </p>
 
-	<p style="font-size: smaller">
-	Other releases:
-	<py:for each="s in active_series_list">
-		<py:if test="s.name == series.name">$s.displayname</py:if>
-		<py:if test="s.name != series.name"><a href="${s.name}.html">$s.displayname</a></py:if>
-	</py:for>
-	</p>
+    <p style="font-size: smaller">
+        Other releases:
+        {% for s in active_series_list -%}
+            {% if s.name == series.name -%}
+                {{ s.displayname }}
+            {% else -%}
+                <a href="{{ s.name }}.html">{{ s.displayname }}</a>
+            {% endif -%}
+        {% endfor -%}
+    </p>
 
-	<h2>Legend and statistics for the displayed data</h2>
-	<table class="grid" width="94%">
-		<colgroup>
-			<col width="6%" />
-			<col width="44%" />
-			<col width="11%" span="${len(arch_list)}" />
-		</colgroup>
-		<thead>
-			<tr>
-				<th colspan="2" rowspan="2">Failure type</th>
-				<th colspan="2" class="center">Main archive</th>
-				<th colspan="2" class="center">Ports archive</th>
-			</tr>
-			<tr>
-				<py:for each="arch in arch_list">
-					<th class="center">$arch</th>
-				</py:for>
-			</tr>
-		</thead>
-		<tbody>
-			<tr class="even" style="text-align:center">
-				<td class="FAILEDTOBUILD">arch (F)</td>
-				<td style="text-align:left">Package failed to build</td>
-				<py:for each="arch in arch_list">
-				<td py:if="stats['FAILEDTOBUILD'][arch].cnt"
-					onmouseover="Tip('${stats['FAILEDTOBUILD'][arch].tooltip}')"
-					onmouseout="UnTip()">${stats['FAILEDTOBUILD'][arch].cnt}</td>
-				<td py:if="not stats['FAILEDTOBUILD'][arch].cnt" />
-				</py:for>
-			</tr>
-			<tr class="odd" style="text-align:center">
-				<td class="MANUALDEPWAIT">arch (M)</td>
-				<td style="text-align:left">Package is waiting on another package</td>
-				<py:for each="arch in arch_list">
-				<td py:if="stats['MANUALDEPWAIT'][arch].cnt"
-					onmouseover="Tip('${stats['MANUALDEPWAIT'][arch].tooltip}')"
-					onmouseout="UnTip()">${stats['MANUALDEPWAIT'][arch].cnt}</td>
-				<td py:if="not stats['MANUALDEPWAIT'][arch].cnt" />
-				</py:for>
-			</tr>
-			<tr class="even" style="text-align:center">
-				<td class="CHROOTWAIT">arch (C)</td>
-				<td style="text-align:left">Failure in the chroot</td>
-				<py:for each="arch in arch_list">
-				<td py:if="stats['CHROOTWAIT'][arch].cnt"
-					onmouseover="Tip('${stats['CHROOTWAIT'][arch].tooltip}')"
-					onmouseout="UnTip()">${stats['CHROOTWAIT'][arch].cnt}</td>
-				<td py:if="not stats['CHROOTWAIT'][arch].cnt" />
-				</py:for>
-			</tr>
-			<tr class="odd" style="text-align:center">
-				<td class="UPLOADFAIL">arch (U)</td>
-				<td style="text-align:left">Failed to upload</td>
-				<py:for each="arch in arch_list">
-				<td py:if="stats['UPLOADFAIL'][arch].cnt"
-					onmouseover="Tip('${stats['UPLOADFAIL'][arch].tooltip}')"
-					onmouseout="UnTip()">${stats['UPLOADFAIL'][arch].cnt}</td>
-				<td py:if="not stats['UPLOADFAIL'][arch].cnt" />
-				</py:for>
-			</tr>
-			<!-- !
-			<tr class="even" style="text-align:center">
-				<td class="PENDING">arch (P)</td>
-				<td style="text-align:left">Needs building (only shown where there is a failure on another arch)</td>
-				<py:for each="arch in arch_list">
-				<td py:if="stats['PENDING'][arch].cnt"
-					onmouseover="Tip('${stats['PENDING'][arch].tooltip}')"
-					onmouseout="UnTip()">${stats['PENDING'][arch].cnt}</td>
-				<td py:if="not stats['PENDING'][arch].cnt" />
-				</py:for>
-			</tr>
-			-->
-		</tbody>
-	</table>
+    <h2>Legend and statistics for the displayed data</h2>
+    <table class="grid" width="94%">
+        <colgroup>
+            <col width="6%" />
+            <col width="44%" />
+            <col width="11%" span="{{ arch_list|count }}" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th colspan="2" rowspan="2">Failure type</th>
+                <th colspan="2" class="center">Main archive</th>
+                <th colspan="2" class="center">Ports archive</th>
+            </tr>
+            <tr>
+                {% for arch in arch_list -%}
+                <th class="center">{{ arch }}</th>
+                {%- endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {{ legend_row('even', 'FAILEDTOBUILD', 'Package failed to build') }}
+            {{ legend_row('odd', 'MANUALDEPWAIT', 'Package is waiting on another package') }}
+            {{ legend_row('even', 'CHROOTWAIT', 'Failure in the chroot') }}
+            {{ legend_row('odd', 'UPLOADFAIL', 'Failed to upload') }}
+            {#-
+            {{ legend_row('even', 'PENDING', 'Needs building (only shown where there is a failure on another arch)') }}
+            -#}
+        </tbody>
+    </table>
 
-	<table py:def="table(packages)" py:if="packages" class="grid" width="100%">
-		<colgroup>
-			<col width="25%" />
-			<col width="25%" />
-			<col width="11%" span="${len(arch_list)}" />
-			<col width="6%" />
-		</colgroup>
-		<thead>
-			<tr>
-				<th rowspan="2">Package</th>
-				<th rowspan="2">Version</th>
-				<th colspan="2" class="center">Main archive</th>
-				<th colspan="2" class="center">Ports archive</th>
-				<th rowspan="2"/>
-			</tr>
-			<tr>
-				<py:for each="arch in arch_list">
-					<th class="center">$arch</th>
-				</py:for>
-			</tr>
-		</thead>
-		<tbody>
-			<py:for each="i, pkg in enumerate(packages)">
-			<?python
-			span = len(pkg.versions)
-			?>
-			<tr py:for="j, ver in enumerate(pkg.versions)" class="${i%2 and 'odd' or 'even'}" style="text-align:center">
-				
-				<td py:if="j == 0" style="text-align:left;" rowspan="$span"><a href="$pkg.url">$pkg.name</a></td>
-				<td style="text-align:left" onmouseover="Tip('${ver.getChangedBy()}')" onmouseout="UnTip()">
-					<a href="$pkg.url/$ver.version">${ver.version}<py:if test="ver.pocket != 'Release'"> ($ver.pocket)</py:if></a>
-				</td>
-				<py:for each="arch in arch_list">
-				<td py:if="arch in ver.logs" class="${ver.logs[arch].buildstate}"
-					onmouseover="Tip('${ver.logs[arch].tooltip}')" onmouseout="UnTip()">
-						<a py:if="ver.logs[arch].buildstate != 'PENDING'" href="${ver.logs[arch].url}">$arch (${ver.logs[arch].buildstate[0]})</a>
-						<a py:if="ver.logs[arch].buildstate != 'PENDING'" href="${ver.logs[arch].log}">&rarr;&nbsp;Log</a>
-						<py:if test="ver.logs[arch].buildstate == 'PENDING'">$arch (P)</py:if>
-				</td>
-				<td py:if="arch not in ver.logs"/>
-				</py:for>
-				<td py:if="j == 0" rowspan="$span"><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
-					<a href="http://bugs.debian.org/src:${pkg.name}">BTS</a></td>
-			</tr>
-			</py:for>
-		</tbody>
-	</table>
+    <h2 id="main">main: {{ main|count }} packages (<a href="#top">top</a>)</h2>
+    {{ table(main) }}
 
-	<h2 id="main">main: ${len(main)} packages (<a href="#top">top</a>)</h2>
-	${table(main)}
+    <h2 id="restricted">restricted: {{ restricted|count }} packages (<a href="#top">top</a>)</h2>
+    {{ table(restricted) }}
 
-	<h2 id="restricted">restricted: ${len(restricted)} packages (<a href="#top">top</a>)</h2>
-	${table(restricted)}
+    <h2 id="universe">universe: {{ universe|count }} packages (<a href="#top">top</a>)</h2>
+    {{ table(universe) }}
 
-	<h2 id="universe">universe: ${len(universe)} packages (<a href="#top">top</a>)</h2>
-	${table(universe)}
+    <h2 id="multiverse">multiverse: {{ multiverse|count }} packages (<a href="#top">top</a>)</h2>
+    {{ table(multiverse) }}
 
-	<h2 id="multiverse">multiverse: ${len(multiverse)} packages (<a href="#top">top</a>)</h2>
-	${table(multiverse)}
-
-	<hr/>
-
-<?python
-import time
-lastupdate = time.strftime('%F %T %z')
-?>
-	<p style="font-size:smaller">Last update: $lastupdate</p>
-	<p>
-	<a href="http://validator.w3.org/check?uri=referer"><img
-		src="http://www.w3.org/Icons/valid-xhtml11-blue"
-		alt="Valid XHTML 1.1" height="31" width="88"
-		style="border-width:0px" /></a>
-	</p>
-	<p style="font-size:smaller"><a href="source">source</a></p>
+    <hr/>
+    <p style="font-size:smaller">Last update: {{ lastupdate }}</p>
+    <p>
+    <a href="http://validator.w3.org/check?uri=referer"><img
+        src="http://www.w3.org/Icons/valid-xhtml11-blue"
+        alt="Valid XHTML 1.1" height="31" width="88"
+        style="border-width:0px" /></a>
+    </p>
+    <p style="font-size:smaller"><a href="source">source</a></p>
 </body>
 </html>
