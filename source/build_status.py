@@ -19,13 +19,14 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
-from launchpadlib.launchpad import Launchpad
-from lazr.restfulclient.resource import Entry
-from launchpadlib.errors import HTTPError
-import sys, os
+import os
+import sys
 import apt_pkg
 import genshi.template
-from launchpadlib.uris import *
+from launchpadlib.errors import HTTPError
+from launchpadlib.launchpad import Launchpad
+from launchpadlib.uris import lookup_service_root
+from lazr.restfulclient.resource import Entry
 
 lp_service = 'edge'
 api_version = '1.0'
