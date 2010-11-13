@@ -35,7 +35,10 @@ apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
-    return self_url.replace("api.", "").replace("%s/" % api_version, "")
+    if self_url is None:
+        return ''
+    else:
+        return self_url.replace('api.', '').replace('%s/' % api_version, '')
 
 # copied from ubuntu-dev-tools, lpapiapicache.py:
 # TODO: use lpapicache from u-d-t
@@ -149,6 +152,8 @@ class SPPH(object):
 
             if self.buildstate == 'MANUALDEPWAIT':
                 self.tooltip = 'waits on %s' % build.dependencies
+            elif build.datebuilt is None:
+                self.tooltip = 'Broken build'
             else:
                 self.tooltip = 'Build finished on %s' % build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')
 
