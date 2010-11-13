@@ -29,14 +29,14 @@ from launchpadlib.launchpad import Launchpad
 from launchpadlib.uris import lookup_service_root
 from lazr.restfulclient.resource import Entry
 
-lp_service = 'edge'
+lp_service = 'production'
 api_version = '1.0'
 default_arch_list = ('i386', 'amd64', 'armel', 'powerpc')
 apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
-    return self_url.replace("api.", "").replace("%s/" % api_version, "").replace("edge.", "")
+    return self_url.replace("api.", "").replace("%s/" % api_version, "")
 
 # copied from ubuntu-dev-tools, lpapiapicache.py:
 # TODO: use lpapicache from u-d-t
