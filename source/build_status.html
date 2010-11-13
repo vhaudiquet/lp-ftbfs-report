@@ -46,7 +46,7 @@
                 {% for pkg in packages -%}
                     {% set pkg_loop = loop -%}
                     {% for ver in pkg.versions -%}
-                        <tr class="{{ pkg_loop.cycle('odd', 'even') }}" style="text-align: center;">
+                        <tr class="{{ pkg_loop.cycle('even', 'odd') }}" style="text-align: center;">
                             {% if loop.first -%}
                                 <td style="text-align: left;" rowspan="{{ pkg.versions|count }}">
                                     <a href="{{ pkg.url }}">{{ pkg.name }}</a>
