@@ -25,13 +25,20 @@ import apt_pkg
 from jinja2 import (Environment, FileSystemLoader)
 from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
-from launchpadlib.uris import lookup_service_root
-from lazr.restfulclient.resource import Entry
+from operator import (attrgetter, methodcaller)
 
 lp_service = 'production'
 api_version = '1.0'
 default_arch_list = ('i386', 'amd64', 'armel', 'powerpc')
 apt_pkg.InitSystem()
+
+# list of SourcePackages for each component
+components = {
+        'main': [],
+        'restricted': [],
+        'universe': [],
+        'multiverse': [],
+        }
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
@@ -40,70 +47,70 @@ def translate_api_web(self_url):
     else:
         return self_url.replace('api.', '').replace('%s/' % api_version, '')
 
-# copied from ubuntu-dev-tools, lpapiapicache.py:
-# TODO: use lpapicache from u-d-t
 class PersonTeam(object):
-    '''
-    Wrapper class around a LP person or team object.
-    '''
+    _cache = dict()
 
-    resource_type = (lookup_service_root(lp_service) + api_version + '/#person',
-            lookup_service_root(lp_service) + api_version + '/#team')
-    _cache = dict() # Key is the LP API person/team URL
-
-    def __init__(self, personteam):
-        if isinstance(personteam, Entry) and personteam.resource_type_link in self.resource_type:
-            self._personteam = personteam
-            # Add ourself to the cache
-            if personteam.self_link not in self._cache:
-                self._cache[personteam.self_link] = self
-        else:
-            raise TypeError('A LP API person or team representation expected.')
-
-    def __str__(self):
-        return u'%s (%s)' % (self._personteam.display_name, self._personteam.name)
-
-    def __getattr__(self, attr):
-        return getattr(self._personteam, attr)
-
-    @classmethod
-    def getPersonTeam(cls, name):
-        '''
-        Return a PersonTeam object for the LP user 'name'.
-
-        'name' can be a LP id or a LP API URL for that person or team.
-        '''
-
-        if name in cls._cache:
-            # 'name' is a LP API URL
-            return cls._cache[name]
-        else:
-            if not name.startswith('http'):
-                # Check if we've cached the 'name' already
-                for personteam in cls._cache.values():
-                    if personteam.name == name:
-                        return personteam
-
+    def __new__(cls, personteam_link):
+        try:
+            return cls._cache[personteam_link]
+        except KeyError:
             try:
-                return PersonTeam(launchpad.people[name])
+                personteam = super(PersonTeam, cls).__new__(cls)
+
+                # fill the new PersonTeam object with data
+                lp_object = launchpad.load(personteam_link)
+                personteam.display_name = lp_object.display_name
+                personteam.name = lp_object.name
+
             except HTTPError, e:
                 if e.response.status == 410:
-                    return None
+                    personteam = None
                 else:
                     raise
 
+            # add to cache
+            cls._cache[personteam_link] = personteam
+
+            return personteam
+
+    @classmethod
+    def clear(cls):
+        cls._cache.clear()
+
+    def __str__(self):
+        return u'%s (%s)' % (self.display_name, self.name)
+
 class SourcePackage(object):
+    _cache = dict()
+
     class VersionList(list):
         def append(self, item):
             super(SourcePackage.VersionList, self).append(item)
-            self.sort(key = lambda x: x.version, cmp = apt_pkg.VersionCompare)
+            self.sort(key = attrgetter('version'), cmp = apt_pkg.VersionCompare)
 
-    def __init__(self, srcpkg):
-        self.name = srcpkg.source_package_name
-        self.component = srcpkg.component_name
-        self.url = 'https://launchpad.net/ubuntu/+source/%s' % self.name
-        self.versions = self.VersionList()
-        all_packages[self.name] = self
+    def __new__(cls, spph):
+        try:
+            return cls._cache[spph.source_package_name]
+        except KeyError:
+            srcpkg = super(SourcePackage, cls).__new__(cls)
+
+            # fill the new SourcePackage object with data
+            srcpkg.name = spph.source_package_name
+            srcpkg.url = 'https://launchpad.net/ubuntu/+source/%s' % srcpkg.name
+            srcpkg.versions = cls.VersionList()
+            components[spph.component_name].append(srcpkg)
+
+            # add to cache
+            cls._cache[spph.source_package_name] = srcpkg
+
+            return srcpkg
+
+    @classmethod
+    def clear(cls):
+        cls._cache.clear()
+
+    def __cmp__(self, other):
+        return cmp(self.name, other.name)
 
     def isFTBFS(self, arch_list = default_arch_list):
         ''' Returns True if at least one FTBFS exists. '''
@@ -122,17 +129,31 @@ class SourcePackage(object):
         return count
 
 class SPPH(object):
-    def __init__(self, spph_link):
-        self.spph = launchpad.load(spph_link)
-        self.logs = dict()
-        self.version = self.spph.source_package_version
-        self.pocket = self.spph.pocket
-        self.changed_by = PersonTeam.getPersonTeam(self.spph.package_creator_link)
-        #self.signed_by = spph.package_signer_link and PersonTeam.getPersonTeam(self.spph.package_signer_link)
-        self.srcpkg = all_packages.get(self.spph.source_package_name)
-        if not self.srcpkg:
-            self.srcpkg = SourcePackage(self.spph)
-        self.srcpkg.versions.append(self)
+    _cache = dict() # dict with all SPPH objects
+
+    def __new__(cls, spph_link):
+        try:
+            return cls._cache[spph_link]
+        except KeyError:
+            spph = super(SPPH, cls).__new__(cls)
+
+            # fill the new SPPH object with data
+            lp_object = launchpad.load(spph_link)
+            spph.logs = dict()
+            spph.version = lp_object.source_package_version
+            spph.pocket = lp_object.pocket
+            spph.changed_by = PersonTeam(lp_object.package_creator_link)
+            #spph.signed_by = spph._lp.package_signer_link and PersonTeam(lp_object.package_signer_link)
+            SourcePackage(lp_object).versions.append(spph)
+
+            # add to cache
+            cls._cache[spph_link] = spph
+
+            return spph
+
+    @classmethod
+    def clear(cls):
+        cls._cache.clear()
 
     class BuildLog(object):
         def __init__(self, build):
@@ -169,7 +190,6 @@ class SPPH(object):
         '''
         return u'Changed-By: %s' % (self.changed_by)
 
-
 def fetch_pkg_list(series, state, arch_list=default_arch_list):
     print "Processing '%s'" % state
 
@@ -185,12 +205,11 @@ def fetch_pkg_list(series, state, arch_list=default_arch_list):
             print "  Skipping %s" % build.title
             continue
 
+        print csp_link
+
         print "  %s" % build.title
 
-        spph = all_spph.get(csp_link)
-        if not spph:
-            spph = all_spph[csp_link] = SPPH(csp_link)
-        spph.addBuildLog(build)
+        SPPH(csp_link).addBuildLog(build)
 
 def generate_page(series, template = 'build_status.html', arch_list = default_arch_list):
     try:
@@ -198,11 +217,12 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
     except IOError:
         return
 
-    # split components
+    filter_ftbfs = lambda comp: filter(methodcaller('isFTBFS', arch_list), sorted(components[comp]))
     data = {}
-    for comp in ('main', 'restricted', 'universe', 'multiverse'):
-        data[comp] = [item for item in sorted(all_packages.values(), key = lambda x: x.name) \
-                if item.component == comp and item.isFTBFS(arch_list)]
+    data['main'] = filter_ftbfs('main')
+    data['universe'] = filter_ftbfs('universe')
+    data['restricted'] = filter_ftbfs('restricted')
+    data['multiverse'] = filter_ftbfs('multiverse')
 
     # container object to hold the counts and the tooltip
     class StatData(object):
@@ -245,21 +265,22 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 def generate_csvfile(series, arch_list = default_arch_list):
     csvout = open('../%s.csv' % series.name, 'w')
     linetemplate = '%(name)s,%(link)s,%(explain)s\n'
-    for pkg in all_packages.values():
-        for ver in pkg.versions:
-            for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
-                archs = [ arch for (arch, log) in ver.logs.items() if log.buildstate == state ]
-                if archs:
-                    log = ver.logs[archs[0]].log
-                    csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
-                        'explain':"[%s] %s" %(','.join(archs), state)})
+    for comp in components.values():
+        for pkg in comp:
+            for ver in pkg.versions:
+                for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
+                    archs = [ arch for (arch, log) in ver.logs.items() if log.buildstate == state ]
+                    if archs:
+                        log = ver.logs[archs[0]].log
+                        csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
+                            'explain':"[%s] %s" %(','.join(archs), state)})
 
 if __name__ == '__main__':
     # login anonymously to LP
     launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service)
 
     ubuntu = launchpad.distributions['ubuntu']
-    active_series_list = sorted([s for s in ubuntu.series if s.active], key = lambda x: x.name)
+    active_series_list = sorted([s for s in ubuntu.series if s.active], key = attrgetter('name'))
 
     if len(sys.argv) > 1:
         series_list = []
@@ -268,7 +289,7 @@ if __name__ == '__main__':
                 series_list.append(ubuntu.getSeries(name_or_version = i))
             except HTTPError:
                 print 'Error: %s is not a valid name or version' % i
-        series_list.sort(key = lambda x: x.name)
+        series_list.sort(key = attrgetter('name'))
 
     else:
         series_list = (ubuntu.current_series,)
@@ -276,9 +297,14 @@ if __name__ == '__main__':
     for series in series_list:
         print "Generating FTBFS for %s" % series.fullseriesname
 
-        # Reset package list
-        all_packages = dict()
-        all_spph = dict()
+        # Clear all caches and package lists
+        PersonTeam.clear()
+        SourcePackage.clear()
+        SPPH.clear()
+        components['main'] = []
+        components['restricted'] = []
+        components['universe'] = []
+        components['multiverse'] = []
 
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
             fetch_pkg_list(series, state)
