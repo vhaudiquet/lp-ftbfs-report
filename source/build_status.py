@@ -19,7 +19,6 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
-import os
 import sys
 import time
 import apt_pkg
@@ -250,18 +249,9 @@ def generate_csvfile(series, arch_list = default_arch_list):
                     csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
                         'explain':"[%s] %s" %(','.join(archs), state)})
 
-def lp_login():
-    cachedir = os.path.expanduser('~/.cache/launchpadlib/')
-    if not os.path.isdir(cachedir):
-        os.makedirs(cachedir)
-
+if __name__ == '__main__':
     # login anonymously to LP
     launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service)
-
-    return launchpad
-
-if __name__ == '__main__':
-    launchpad = lp_login()
 
     ubuntu = launchpad.distributions['ubuntu']
     active_series_list = sorted([s for s in ubuntu.series if s.active], key = lambda x: x.name)
