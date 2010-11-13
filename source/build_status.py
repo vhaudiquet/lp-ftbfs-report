@@ -108,7 +108,7 @@ class SourcePackage(object):
         for ver in self.versions:
             for arch in arch_list:
                 log = ver.getArch(arch)
-                if log and log.buildstate != 'PENDING':
+                if log is not None:
                     return True
         return False
 
@@ -139,7 +139,6 @@ class SPPH(object):
                     'Dependency wait': 'MANUALDEPWAIT',
                     'Chroot problem': 'CHROOTWAIT',
                     'Failed to upload': 'UPLOADFAIL',
-                    'Needs building': 'PENDING',
                     }
             self.buildstate = buildstates[build.buildstate]
             self.url = translate_api_web(build.self_link)
@@ -209,7 +208,7 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 
     # compute some statistics (number of packages for each build failure type)
     stats = {}
-    for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
+    for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
         stats[state] = {}
         for arch in arch_list:
             tooltip = []
@@ -244,7 +243,7 @@ def generate_csvfile(series, arch_list = default_arch_list):
     linetemplate = '%(name)s,%(link)s,%(explain)s\n'
     for pkg in all_packages.values():
         for ver in pkg.versions:
-            for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
+            for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
                 archs = [ arch for (arch, log) in ver.logs.items() if log.buildstate == state ]
                 if archs:
                     log = ver.logs[archs[0]].log
@@ -286,7 +285,6 @@ if __name__ == '__main__':
         all_packages = dict()
         all_spph = dict()
 
-        # 'Pending build' makes it really run long, so not included in the status to fetch
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
             fetch_pkg_list(series, state)
 
