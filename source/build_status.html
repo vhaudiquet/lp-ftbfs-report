@@ -19,19 +19,21 @@
     </tr>
 {%- endmacro %}
 
-{% macro table(packages) -%}
+{% macro table(packages, packageset=None) -%}
     {% if packages|count > 0 -%}
         <table class="grid" width="100%">
             <colgroup>
                 <col width="25%" />
-                <col width="25%" />
+                <col width="24%" />
+                <col width="2%" />
                 <col width="11%" span="{{ arch_list|count }}" />
-                <col width="6%" />
+                <col width="5%" />
             </colgroup>
             <thead>
                 <tr>
                     <th rowspan="2">Package</th>
                     <th rowspan="2">Version</th>
+                    <th rowspan="2"><abbr title="Belongs to a package set?">PS?</abbr></th>
                     <th colspan="2" class="center">Main archive</th>
                     <th colspan="2" class="center">Ports archive</th>
                     <th rowspan="2"/>
@@ -56,6 +58,13 @@
                                 <a href="{{ pkg.url }}/{{ ver.version }}">{{ ver.version }}
                                     {%- if ver.pocket != 'Release' %}{{ ver.pocket }}{% endif -%}
                                 </a>
+                            </td>
+                            {%- if pkg.getPackagesets(packageset)|count > 0 %}
+                                <td onmouseover="Tip('{{ pkg.getPackagesets()|sort|join(', ') }}')"
+                                    onmouseout="UnTip()">&#10003;</td>
+                            {% else -%}
+                                <td />
+                            {% endif -%}
                             </td>
                             {% for arch in arch_list -%}
                                 {% if arch in ver.logs -%}
@@ -103,6 +112,12 @@
         <a href="#multiverse">multiverse</a> ({{ multiverse|count }})
     </p>
 
+    <p>Jump to packageset:
+        {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
+            <a href="#{{ ps }}">{{ ps }} ({{ lst|count }})</a>
+        {% endfor -%}
+    </p>
+
     <p style="font-size: smaller">
         Other releases:
         {% for s in active_series_list -%}
@@ -115,10 +130,10 @@
     </p>
 
     <h2>Legend and statistics for the displayed data</h2>
-    <table class="grid" width="94%">
+    <table class="grid" width="95%">
         <colgroup>
             <col width="6%" />
-            <col width="44%" />
+            <col width="45%" />
             <col width="11%" span="{{ arch_list|count }}" />
         </colgroup>
         <thead>
@@ -152,6 +167,12 @@
 
     <h2 id="multiverse">multiverse: {{ multiverse|count }} packages (<a href="#top">top</a>)</h2>
     {{ table(multiverse) }}
+
+    <h2>Packagesets</h2>
+    {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
+        <h3 id="{{ ps }}">{{ ps }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
+        {{ table(lst, ps) }}
+    {% endfor -%}
 
     <hr/>
     <p style="font-size:smaller">Last update: {{ lastupdate }}</p>

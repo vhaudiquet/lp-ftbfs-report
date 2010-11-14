@@ -32,14 +32,6 @@ api_version = '1.0'
 default_arch_list = ('i386', 'amd64', 'armel', 'powerpc')
 apt_pkg.InitSystem()
 
-# list of SourcePackages for each component
-components = {
-        'main': [],
-        'restricted': [],
-        'universe': [],
-        'multiverse': [],
-        }
-
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
     if self_url is None:
@@ -98,7 +90,10 @@ class SourcePackage(object):
             srcpkg.name = spph.source_package_name
             srcpkg.url = 'https://launchpad.net/ubuntu/+source/%s' % srcpkg.name
             srcpkg.versions = cls.VersionList()
+            srcpkg.packagesets = set([ps for (ps, srcpkglist) in packagesets.items() if spph.source_package_name in srcpkglist])
             components[spph.component_name].append(srcpkg)
+            for ps in srcpkg.packagesets:
+                packagesets_ftbfs[ps].append(srcpkg)
 
             # add to cache
             cls._cache[spph.source_package_name] = srcpkg
@@ -127,6 +122,13 @@ class SourcePackage(object):
             if arch in ver.logs and ver.logs[arch].buildstate == state:
                 count += 1
         return count
+
+    def getPackagesets(self, name=None):
+        '''Return the list of packagesets without the packageset `name`.'''
+        if name is None:
+            return list(self.packagesets)
+        else:
+            return list(self.packagesets.difference((name,)))
 
 class SPPH(object):
     _cache = dict() # dict with all SPPH objects
@@ -255,6 +257,7 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
     data['active_series_list'] = active_series_list
     data['arch_list'] = arch_list
     data['lastupdate'] = time.strftime('%F %T %z')
+    data['packagesets'] = packagesets_ftbfs
 
     env = Environment(loader=FileSystemLoader('.'))
     template = env.get_template('build_status.html')
@@ -297,14 +300,26 @@ if __name__ == '__main__':
     for series in series_list:
         print "Generating FTBFS for %s" % series.fullseriesname
 
-        # Clear all caches and package lists
+        # clear all caches
         PersonTeam.clear()
         SourcePackage.clear()
         SPPH.clear()
-        components['main'] = []
-        components['restricted'] = []
-        components['universe'] = []
-        components['multiverse'] = []
+
+        # list of SourcePackages for each component
+        components = {
+                'main': [],
+                'restricted': [],
+                'universe': [],
+                'multiverse': [],
+                }
+
+        # packagesets for this series
+        packagesets = dict()
+        packagesets_ftbfs = dict()
+        for ps in launchpad.packagesets:
+            if ps.distroseries_link == series.self_link:
+                packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
+                packagesets_ftbfs[ps.name] = [] # empty list to add FTBFS for each package set later
 
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
             fetch_pkg_list(series, state)
