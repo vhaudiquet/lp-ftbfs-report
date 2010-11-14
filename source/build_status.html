@@ -33,7 +33,8 @@
                 <tr>
                     <th rowspan="2">Package</th>
                     <th rowspan="2">Version</th>
-                    <th rowspan="2"><abbr title="Belongs to a package set?">PS?</abbr></th>
+                    <th rowspan="2" onmouseover="Tip('Belongs also to a (different) packageset?')"
+                        onmouseout="UnTip()">PS?</th>
                     <th colspan="2" class="center">Main archive</th>
                     <th colspan="2" class="center">Ports archive</th>
                     <th rowspan="2"/>
@@ -59,13 +60,15 @@
                                     {%- if ver.pocket != 'Release' %}{{ ver.pocket }}{% endif -%}
                                 </a>
                             </td>
-                            {%- if pkg.getPackagesets(packageset)|count > 0 %}
-                                <td onmouseover="Tip('{{ pkg.getPackagesets()|sort|join(', ') }}')"
-                                    onmouseout="UnTip()">&#10003;</td>
-                            {% else -%}
-                                <td />
+                            {%- if loop.first %}
+                                {%- if pkg.getPackagesets(packageset)|count > 0 %}
+                                    <td rowspan="{{ pkg.versions|count }}"
+                                        onmouseover="Tip('{{ pkg.getPackagesets(packageset)|sort|join(', ') }}')"
+                                        onmouseout="UnTip()">&#10003;</td>
+                                {% else -%}
+                                    <td rowspan="{{ pkg.versions|count }}" />
+                                {% endif -%}
                             {% endif -%}
-                            </td>
                             {% for arch in arch_list -%}
                                 {% if arch in ver.logs -%}
                                     <td class="{{ ver.logs[arch].buildstate }}"
@@ -114,7 +117,7 @@
 
     <p>Jump to packageset:
         {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
-            <a href="#{{ ps }}">{{ ps }} ({{ lst|count }})</a>
+        <a href="#{{ ps }}">{{ ps }}</a> ({{ lst|count }})
         {% endfor -%}
     </p>
 

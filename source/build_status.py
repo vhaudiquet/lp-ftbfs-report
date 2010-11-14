@@ -207,8 +207,6 @@ def fetch_pkg_list(series, state, arch_list=default_arch_list):
             print "  Skipping %s" % build.title
             continue
 
-        print csp_link
-
         print "  %s" % build.title
 
         SPPH(csp_link).addBuildLog(build)
@@ -221,10 +219,8 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
 
     filter_ftbfs = lambda comp: filter(methodcaller('isFTBFS', arch_list), sorted(components[comp]))
     data = {}
-    data['main'] = filter_ftbfs('main')
-    data['universe'] = filter_ftbfs('universe')
-    data['restricted'] = filter_ftbfs('restricted')
-    data['multiverse'] = filter_ftbfs('multiverse')
+    for comp in ('main', 'restricted', 'universe', 'multiverse'):
+        data[comp] = filter_ftbfs(comp)
 
     # container object to hold the counts and the tooltip
     class StatData(object):
@@ -276,7 +272,7 @@ def generate_csvfile(series, arch_list = default_arch_list):
                     if archs:
                         log = ver.logs[archs[0]].log
                         csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
-                            'explain':"[%s] %s" %(','.join(archs), state)})
+                            'explain':"[%s] %s" %(', '.join(archs), state)})
 
 if __name__ == '__main__':
     # login anonymously to LP
