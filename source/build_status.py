@@ -217,10 +217,13 @@ def generate_page(series, template = 'build_status.html', arch_list = default_ar
     except IOError:
         return
 
-    filter_ftbfs = lambda comp: filter(methodcaller('isFTBFS', arch_list), sorted(components[comp]))
+    # sort the package lists
+    filter_ftbfs = lambda pkglist: filter(methodcaller('isFTBFS', arch_list), sorted(pkglist))
     data = {}
     for comp in ('main', 'restricted', 'universe', 'multiverse'):
-        data[comp] = filter_ftbfs(comp)
+        data[comp] = filter_ftbfs(components[comp])
+    for pkgset, pkglist in packagesets_ftbfs.items():
+        packagesets_ftbfs[pkgset] = filter_ftbfs(pkglist)
 
     # container object to hold the counts and the tooltip
     class StatData(object):

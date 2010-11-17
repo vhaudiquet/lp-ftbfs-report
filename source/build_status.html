@@ -19,7 +19,7 @@
     </tr>
 {%- endmacro %}
 
-{% macro table(packages, packageset=None) -%}
+{% macro table(packages, packageset=None, set_tooltip='Belongs to a packageset?') -%}
     {% if packages|count > 0 -%}
         <table class="grid" width="100%">
             <colgroup>
@@ -33,8 +33,8 @@
                 <tr>
                     <th rowspan="2">Package</th>
                     <th rowspan="2">Version</th>
-                    <th rowspan="2" onmouseover="Tip('Belongs also to a (different) packageset?')"
-                        onmouseout="UnTip()">PS?</th>
+                    <th rowspan="2" onmouseover="Tip('{{ set_tooltip }}')"
+                        onmouseout="UnTip()">Set?</th>
                     <th colspan="2" class="center">Main archive</th>
                     <th colspan="2" class="center">Ports archive</th>
                     <th rowspan="2"/>
@@ -174,7 +174,7 @@
     <h2>Packagesets</h2>
     {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
         <h3 id="{{ ps }}">{{ ps }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
-        {{ table(lst, ps) }}
+        {{ table(lst, ps, 'Also belongs to another packageset?') }}
     {% endfor -%}
 
     <hr/>
