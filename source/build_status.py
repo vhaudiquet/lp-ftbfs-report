@@ -19,7 +19,7 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
-from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
+from launchpadlib.launchpad import Launchpad
 try:
 	from launchpadlib.resource import Entry
 except ImportError:
@@ -75,6 +75,7 @@ class PersonTeam(object):
                 'name' can be a LP id or a LP API URL for that person or team.
                 '''
 
+		return None
                 if name in cls._cache:
                         # 'name' is a LP API URL
                         return cls._cache[name]
@@ -153,12 +154,18 @@ class SPPH(object):
 			if self.buildstate == 'UPLOADFAIL':
 				self.log = translate_api_web(build.upload_log_url)
 			else:
-				self.log = translate_api_web(build.build_log_url)
+				if build.build_log_url:
+					self.log = translate_api_web(build.build_log_url)
+				else:
+					self.log = ''
 
 			if self.buildstate == 'MANUALDEPWAIT':
 				self.tooltip = 'waits on %s' % build.dependencies
 			else:
-				self.tooltip = 'Build finished on %s' % build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')
+				if build.datebuilt:
+					self.tooltip = 'Build finished on %s' % build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')
+				else:
+					self.tooltip = 'Build finish unknown'
 
 	def addBuildLog(self, buildlog):
 		self.logs[buildlog.arch_tag] = self.BuildLog(buildlog)
@@ -300,10 +307,10 @@ if __name__ == '__main__':
 	launchpad = lp_login()
 
 	ubuntu = launchpad.distributions['ubuntu']
-	assert len(sys.argv) == 3
+	assert len(sys.argv) >= 4
 
 	try:
-		archive = launchpad.load(EDGE_SERVICE_ROOT + 'ubuntu/+archive/' + sys.argv[1])
+		archive = ubuntu.getArchive(name=sys.argv[1])
 	except HTTPError:
 		print 'Error: %s is not a valid archive.' % sys.argv[1]
 	try:
@@ -313,6 +320,8 @@ if __name__ == '__main__':
 
 	if archive.name != 'primary':
 		main_archive = ubuntu.main_archive
+
+	default_arch_list.extend(sys.argv[3:])
 
 	for (archive, series) in [(archive, series)]:
 		print "Generating FTBFS for %s" % series.fullseriesname
