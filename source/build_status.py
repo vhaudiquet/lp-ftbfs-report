@@ -180,7 +180,7 @@ class SPPH(object):
 		return u'Changed-By: %s' % (self.changed_by)
 
 
-def fetch_pkg_list(archive, series, state, main_archive=None):
+def fetch_pkg_list(archive, series, state, main_archive=None, main_series=None):
 	print "Processing '%s'" % state
 
 	# XXX wgrant 2009-09-19: This is an awful hack. We should really
@@ -210,7 +210,7 @@ def fetch_pkg_list(archive, series, state, main_archive=None):
 			# probably only makes sense if the target archive is a rebuild.
 			if main_archive:
 				main_publications = main_archive.getPublishedSources(
-					distro_series=series,
+					distro_series=main_series,
 					exact_match=True,
 					source_name=spph.spph.source_package_name,
 					version=spph.spph.source_package_version,
@@ -320,6 +320,7 @@ if __name__ == '__main__':
 
 	if archive.name != 'primary':
 		main_archive = ubuntu.main_archive
+		main_series = ubuntu.current_series
 
 	default_arch_list.extend(sys.argv[3:])
 
@@ -332,7 +333,7 @@ if __name__ == '__main__':
 
 		# 'Needs building' makes it really run long, so not included in the status to fetch
 		for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
-			fetch_pkg_list(archive, series, state, main_archive)
+			fetch_pkg_list(archive, series, state, main_archive, main_series)
 
 		print "Generating HTML page..."
 		generate_page(archive, series)
