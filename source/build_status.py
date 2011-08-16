@@ -31,15 +31,15 @@ import genshi.template
 try:
 	from launchpadlib.uris import *
 except ImportError:
-	lookup_service_root = lambda u: 'https://api.launchpad.net/beta/' if u == 'production' else 'https://api.edge.launchpad.net/beta/'
+	lookup_service_root = lambda u: 'https://api.launchpad.net/' if u == 'production' else 'https://api.edge.launchpad.net/'
 
-lp_service = 'edge'
-default_arch_list = ('i386', 'amd64')
+lp_service = 'production'
+default_arch_list = []
 apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
-    return self_url.replace("api.", "").replace("beta/", "").replace("edge.", "")
+    return self_url.replace("api.", "").replace("devel/", "").replace("edge.", "").replace("1.0/", "")
 
 # copied from ubuntu-dev-tools, lpapiapicache.py:
 # TODO: use lpapicache from u-d-t
