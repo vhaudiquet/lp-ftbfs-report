@@ -176,6 +176,7 @@
         {{ table(lst, ps, 'Also belongs to another packageset?') }}
     {% endfor -%}
 
+    {% if main_archive %}
     <h2 id="main_superseded">main (superseded): {{ main_superseded|count }} packages (<a href="#top">top</a>)</h2>
     {{ table(main_superseded) }}
 
@@ -187,6 +188,7 @@
 
     <h2 id="multiverse_superseded">multiverse (superseded): {{ multiverse_superseded|count }} packages (<a href="#top">top</a>)</h2>
     {{ table(multiverse_superseded) }}
+    {%- endif %}
 
     <hr/>
     <p style="font-size:smaller">Last update: {{ lastupdate }}</p>

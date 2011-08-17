@@ -270,7 +270,7 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
     return cur_last_published
 
 
-def generate_page(archive, series, template = 'build_status.html', arch_list = default_arch_list):
+def generate_page(archive, series, main_archive, template = 'build_status.html', arch_list = default_arch_list):
     try:
         out = open('../%s-%s.html' % (archive.name, series.name), 'w')
     except IOError:
@@ -317,6 +317,7 @@ def generate_page(archive, series, template = 'build_status.html', arch_list = d
 
     data['stats'] = stats
     data['archive'] = archive
+    data['main_archive'] = main_archive
     data['series'] = series
     data['arch_list'] = arch_list
     data['lastupdate'] = time.strftime('%F %T %z')
@@ -428,6 +429,6 @@ if __name__ == '__main__':
         save_timestamps(archive, series, last_published)
 
         print "Generating HTML page..."
-        generate_page(archive, series)
+        generate_page(archive, series, main_archive)
         print "Generating CSV file..."
         generate_csvfile(archive, series)
