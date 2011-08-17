@@ -84,6 +84,8 @@ class PersonTeam(object):
 
             try:
                 return PersonTeam(launchpad.people[name])
+            except KeyError:
+                return None
             except HTTPError, e:
                 if e.response.status == 410:
                     return None
