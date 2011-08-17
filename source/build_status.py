@@ -304,9 +304,9 @@ def lp_login():
 
 	# login anonymously to LP
 	if hasattr(Launchpad, 'login_anonymously'):
-		launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service)
+		launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service, version='devel')
 	else:
-		launchpad = Launchpad.login('qa-ftbfs', '', '', lookup_service_root(lp_service))
+		launchpad = Launchpad.login('qa-ftbfs', '', '', lookup_service_root(lp_service), version='devel')
 
 	return launchpad
 
