@@ -54,7 +54,7 @@ class PersonTeam(object):
         _cache = dict() # Key is the LP API person/team URL
 
         def __init__(self, personteam):
-		if isinstance(personteam, Entry) and personteam.resource_type_link in self.resource_type:
+		if isinstance(personteam, Entry) and personteam.resource_type_link.rsplit("#", 1)[1] in ('team', 'person'):
                         self._personteam = personteam
                         # Add ourself to the cache
                         if personteam.self_link not in self._cache:
@@ -76,7 +76,6 @@ class PersonTeam(object):
                 'name' can be a LP id or a LP API URL for that person or team.
                 '''
 
-		return None
                 if name in cls._cache:
                         # 'name' is a LP API URL
                         return cls._cache[name]
@@ -131,6 +130,7 @@ class SourcePackage(object):
 			if arch in ver.logs and ver.logs[arch].buildstate == state:
 				count += 1
 		return count
+	
 
 class SPPH(object):
 	def __init__(self, spph_link):
