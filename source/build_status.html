@@ -48,7 +48,7 @@
                 {% for pkg in packages -%}
                     {% set pkg_loop = loop -%}
                     {% for ver in pkg.versions -%}
-                        <tr class="{{ pkg_loop.cycle('odd', 'even') }}" style="text-align: center;">
+                        <tr class="{{ pkg_loop.cycle('even', 'odd') }}" style="text-align: center;">
                             {% if loop.first -%}
                                 <td style="text-align: left;" rowspan="{{ pkg.versions|count }}">
                                     <a href="{{ pkg.url }}">{{ pkg.name }}</a>
@@ -63,13 +63,9 @@
                                 {% if arch in ver.logs -%}
                                     <td class="{{ ver.logs[arch].buildstate }}"
                                         onmouseover="Tip('{{ ver.logs[arch].tooltip|e }}')" onmouseout="UnTip()">
-                                        {% if ver.logs[arch].buildstate != 'PENDING' -%}
-                                            <a href="{{ ver.logs[arch].url }}">{{ arch }} ({{ ver.logs[arch].buildstate[0] }})</a>
-                                            &rarr;
-                                            <a href="{{ ver.logs[arch].log }}">Log</a>
-                                        {% else -%}
-                                            {{ arch }} (P)
-                                        {%- endif %}
+                                        <a href="{{ ver.logs[arch].url }}">{{ arch }} ({{ ver.logs[arch].buildstate[0] }})</a>
+                                        &rarr;
+                                        <a href="{{ ver.logs[arch].log }}">Log</a>
                                     </td>
                                 {% else -%}
                                     <td />
@@ -141,9 +137,6 @@
             {{ legend_row('odd', 'MANUALDEPWAIT', 'Package is waiting on another package') }}
             {{ legend_row('even', 'CHROOTWAIT', 'Failure in the chroot') }}
             {{ legend_row('odd', 'UPLOADFAIL', 'Failed to upload') }}
-            {#-
-            {{ legend_row('even', 'PENDING', 'Needs building (only shown where there is a failure on another arch)') }}
-            -#}
         </tbody>
     </table>
 

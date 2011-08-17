@@ -19,7 +19,6 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
-import os
 import sys
 import time
 import apt_pkg
@@ -37,7 +36,10 @@ apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
-    return self_url.replace("api.", "").replace("%s/" % api_version, "").replace("edge.", "")
+    if self_url is None:
+        return ''
+    else:
+        return self_url.replace('api.', '').replace('%s/' % api_version, '')
 
 # copied from ubuntu-dev-tools, lpapiapicache.py:
 # TODO: use lpapicache from u-d-t
@@ -119,7 +121,7 @@ class SourcePackage(object):
                 continue
             for arch in arch_list:
                 log = ver.getArch(arch)
-                if log and log.buildstate != 'PENDING':
+                if log is not None:
                     return True
         return False
 
@@ -151,7 +153,6 @@ class SPPH(object):
                     'Dependency wait': 'MANUALDEPWAIT',
                     'Chroot problem': 'CHROOTWAIT',
                     'Failed to upload': 'UPLOADFAIL',
-                    'Needs building': 'PENDING',
                     }
             self.buildstate = buildstates[build.buildstate]
             self.url = translate_api_web(build.self_link)
@@ -166,6 +167,8 @@ class SPPH(object):
 
             if self.buildstate == 'MANUALDEPWAIT':
                 self.tooltip = 'waits on %s' % build.dependencies
+            elif build.datebuilt is None:
+                self.tooltip = 'Broken build'
             else:
                 if build.datebuilt:
                     self.tooltip = 'Build finished on %s' % build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')
@@ -255,7 +258,7 @@ def generate_page(archive, series, template = 'build_status.html', arch_list = d
 
     # compute some statistics (number of packages for each build failure type)
     stats = {}
-    for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
+    for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
         stats[state] = {}
         for arch in arch_list:
             tooltip = []
@@ -293,25 +296,16 @@ def generate_csvfile(archive, series, arch_list = default_arch_list):
     linetemplate = '%(name)s,%(link)s,%(explain)s\n'
     for pkg in all_packages.values():
         for ver in pkg.versions:
-            for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'PENDING'):
+            for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
                 archs = [ arch for (arch, log) in ver.logs.items() if log.buildstate == state ]
                 if archs:
                     log = ver.logs[archs[0]].log
                     csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
                         'explain':"[%s] %s" %(','.join(archs), state)})
 
-def lp_login():
-    cachedir = os.path.expanduser('~/.cache/launchpadlib/')
-    if not os.path.isdir(cachedir):
-        os.makedirs(cachedir)
-
+if __name__ == '__main__':
     # login anonymously to LP
     launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service, version=api_version)
-
-    return launchpad
-
-if __name__ == '__main__':
-    launchpad = lp_login()
 
     ubuntu = launchpad.distributions['ubuntu']
     assert len(sys.argv) >= 4
@@ -338,7 +332,6 @@ if __name__ == '__main__':
         all_packages = dict()
         all_spph = dict()
 
-        # 'Needs building' makes it really run long, so not included in the status to fetch
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
             fetch_pkg_list(archive, series, state, default_arch_list, main_archive, main_series)
 
