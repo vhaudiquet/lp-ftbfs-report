@@ -87,7 +87,7 @@
                                 <td rowspan="{{ pkg.versions|count }}">
                                     {% for bug in pkg.tagged_bugs %}
                                         <a href="https://launchpad.net/bugs/{{ bug.id }}"
-                                           title="{{ bug.summary }}">
+                                           title="{{ bug.title }}">
                                            {{ bug.id }}
                                         </a>
                                     {%- endfor %}
