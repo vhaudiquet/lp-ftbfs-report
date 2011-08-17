@@ -67,3 +67,7 @@
 .PENDING {
 	background:gray
 }
+
+.center {
+	text-align: center;
+}

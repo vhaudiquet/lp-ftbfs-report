@@ -19,19 +19,14 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
-from launchpadlib.launchpad import Launchpad
-try:
-    from launchpadlib.resource import Entry
-except ImportError:
-    from lazr.restfulclient.resource import Entry
-from launchpadlib.errors import HTTPError
-import sys, os
+import os
+import sys
 import apt_pkg
 import genshi.template
-try:
-    from launchpadlib.uris import *
-except ImportError:
-    lookup_service_root = lambda u: 'https://api.launchpad.net/' if u == 'production' else 'https://api.edge.launchpad.net/'
+from launchpadlib.errors import HTTPError
+from launchpadlib.launchpad import Launchpad
+from launchpadlib.uris import lookup_service_root
+from lazr.restfulclient.resource import Entry
 
 lp_service = 'production'
 api_version = 'devel'
@@ -187,7 +182,7 @@ class SPPH(object):
         return u'Changed-By: %s' % (self.changed_by)
 
 
-def fetch_pkg_list(archive, series, state, main_archive=None, main_series=None):
+def fetch_pkg_list(archive, series, state, arch_list=default_arch_list, main_archive=None, main_series=None):
     print "Processing '%s'" % state
 
     # XXX wgrant 2009-09-19: This is an awful hack. We should really
@@ -201,6 +196,10 @@ def fetch_pkg_list(archive, series, state, main_archive=None, main_series=None):
         csp_link = build.current_source_publication_link
         if not csp_link:
             # Build log for an older version
+            continue
+
+        if build.arch_tag not in arch_list:
+            print "  Skipping %s" % build.title
             continue
 
         print "  %s" % build.title
@@ -303,10 +302,7 @@ def lp_login():
         os.makedirs(cachedir)
 
     # login anonymously to LP
-    if hasattr(Launchpad, 'login_anonymously'):
-        launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service, version=api_version)
-    else:
-        launchpad = Launchpad.login('qa-ftbfs', '', '', lookup_service_root(lp_service))
+    launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service, version=api_version)
 
     return launchpad
 
@@ -340,7 +336,7 @@ if __name__ == '__main__':
 
         # 'Needs building' makes it really run long, so not included in the status to fetch
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
-            fetch_pkg_list(archive, series, state, main_archive, main_series)
+            fetch_pkg_list(archive, series, state, default_arch_list, main_archive, main_series)
 
         print "Generating HTML page..."
         generate_page(archive, series)
