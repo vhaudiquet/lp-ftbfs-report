@@ -35,6 +35,7 @@ except ImportError:
 
 lp_service = 'production'
 default_arch_list = []
+find_tagged_bugs = 'ftbfs'
 apt_pkg.InitSystem()
 
 # copied from ubuntu-dev-tools, libsupport.py:
@@ -105,6 +106,12 @@ class SourcePackage(object):
 		self.component = srcpkg.component_name
 		self.url = 'https://launchpad.net/ubuntu/+source/%s' % self.name
 		self.versions = self.VersionList()
+
+		if find_tagged_bugs is None:
+			self.tagged_bugs = []
+		else:
+			ts = ubuntu.getSourcePackage(name=self.name).searchTasks(tags=find_tagged_bugs)
+			self.tagged_bugs = [t.bug for t in ts]
 		all_packages[self.name] = self
 
 	def isFTBFS(self, arch_list = default_arch_list, current = True):

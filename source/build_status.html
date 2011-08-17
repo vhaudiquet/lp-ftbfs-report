@@ -99,6 +99,7 @@
 			<col width="24%" />
 			<col width="8%" span="${len(arch_list)}" />
 			<col width="4%" />
+			<col width="4%" />
 		</colgroup>
 		<thead>
 			<tr>
@@ -107,6 +108,7 @@
 				<py:for each="arch in arch_list">
 					<th>$arch</th>
 				</py:for>
+				<th>Bugs</th>
 				<th />
 			</tr>
 		</thead>
@@ -130,6 +132,7 @@
 				</td>
 				<td py:if="arch not in ver.logs"/>
 				</py:for>
+				<td><a py:for="bug in pkg.tagged_bugs" href="https://launchpad.net/bugs/${bug.id}" title="${bug.title}">${bug.id}</a></td>
 				<td py:if="j == 0" rowspan="$span"><a href="http://packages.qa.debian.org/${pkg.name}">PTS</a>
 					<a href="http://bugs.debian.org/src:${pkg.name}">BTS</a></td>
 			</tr>
