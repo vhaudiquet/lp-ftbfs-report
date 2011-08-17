@@ -36,8 +36,12 @@
                     <th rowspan="2">Version</th>
                     <th rowspan="2" onmouseover="Tip('{{ set_tooltip }}')"
                         onmouseout="UnTip()">Set?</th>
-                    <th colspan="2" class="center">Main archive</th>
-                    <!--<th colspan="2" class="center">Ports archive</th>-->
+                    {% if archs_by_archive['main'] %}
+                    <th colspan="{{ archs_by_archive['main']|count }}" class="center">Main archive</th>
+                    {% endif %}
+                    {% if archs_by_archive['ports'] %}
+                    <th colspan="{{ archs_by_archive['ports']|count }}" class="center">Ports archive</th>
+                    {% endif %}
                     <th rowspan="2"/>Bugs</th>
                     <th rowspan="2"/>
                 </tr>
@@ -141,8 +145,12 @@
         <thead>
             <tr>
                 <th colspan="2" rowspan="2">Failure type</th>
-                <th colspan="2" class="center">Main archive</th>
-                <!--<th colspan="2" class="center">Ports archive</th>-->
+                {% if archs_by_archive['main'] %}
+                <th colspan="{{ archs_by_archive['main']|count }}" class="center">Main archive</th>
+                {% endif %}
+                {% if archs_by_archive['ports'] %}
+                <th colspan="{{ archs_by_archive['ports']|count }}" class="center">Ports archive</th>
+                {% endif %}
             </tr>
             <tr>
                 {% for arch in arch_list -%}

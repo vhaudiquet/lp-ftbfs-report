@@ -270,7 +270,7 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
     return cur_last_published
 
 
-def generate_page(archive, series, main_archive, template = 'build_status.html', arch_list = default_arch_list):
+def generate_page(archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list):
     try:
         out = open('../%s-%s.html' % (archive.name, series.name), 'w')
     except IOError:
@@ -320,6 +320,7 @@ def generate_page(archive, series, main_archive, template = 'build_status.html',
     data['main_archive'] = main_archive
     data['series'] = series
     data['arch_list'] = arch_list
+    data['archs_by_archive'] = archs_by_archive
     data['lastupdate'] = time.strftime('%F %T %z')
     data['packagesets'] = packagesets_ftbfs
 
@@ -396,7 +397,12 @@ if __name__ == '__main__':
     else:
         main_archive = main_series = None
 
-    default_arch_list.extend(sys.argv[3:])
+    archs_by_archive = dict(main=[], ports=[])
+    for arch in sys.argv[3:]:
+        das = series.getDistroArchSeries(archtag=arch)
+        archs_by_archive[das.official and 'main' or 'ports'].append(arch)
+    default_arch_list.extend(archs_by_archive['main'])
+    default_arch_list.extend(archs_by_archive['ports'])
 
     for (archive, series) in [(archive, series)]:
         print "Generating FTBFS for %s" % series.fullseriesname
@@ -429,6 +435,6 @@ if __name__ == '__main__':
         save_timestamps(archive, series, last_published)
 
         print "Generating HTML page..."
-        generate_page(archive, series, main_archive)
+        generate_page(archive, series, archs_by_archive, main_archive)
         print "Generating CSV file..."
         generate_csvfile(archive, series)
