@@ -19,20 +19,23 @@
     </tr>
 {%- endmacro %}
 
-{% macro table(packages) -%}
+{% macro table(packages, packageset=None, set_tooltip='Belongs to a packageset?') -%}
     {% if packages|count > 0 -%}
         <table class="grid" width="100%">
             <colgroup>
                 <col width="25%" />
-                <col width="25%" />
+                <col width="24%" />
+                <col width="2%" />
                 <col width="11%" span="{{ arch_list|count }}" />
-                <col width="6%" />
-                <col width="6%" />
+                <col width="5%" />
+                <col width="5%" />
             </colgroup>
             <thead>
                 <tr>
                     <th rowspan="2">Package</th>
                     <th rowspan="2">Version</th>
+                    <th rowspan="2" onmouseover="Tip('{{ set_tooltip }}')"
+                        onmouseout="UnTip()">Set?</th>
                     <th colspan="2" class="center">Main archive</th>
                     <!--<th colspan="2" class="center">Ports archive</th>-->
                     <th rowspan="2"/>Bugs</th>
@@ -59,6 +62,15 @@
                                     {%- if ver.pocket != 'Release' %}{{ ver.pocket }}{% endif -%}
                                 </a>
                             </td>
+                            {%- if loop.first %}
+                                {%- if pkg.getPackagesets(packageset)|count > 0 %}
+                                    <td rowspan="{{ pkg.versions|count }}"
+                                        onmouseover="Tip('{{ pkg.getPackagesets(packageset)|sort|join(', ') }}')"
+                                        onmouseout="UnTip()">&#10003;</td>
+                                {% else -%}
+                                    <td rowspan="{{ pkg.versions|count }}" />
+                                {% endif -%}
+                            {% endif -%}
                             {% for arch in arch_list -%}
                                 {% if arch in ver.logs -%}
                                     <td class="{{ ver.logs[arch].buildstate }}"
@@ -113,11 +125,17 @@
         <a href="#multiverse">multiverse</a> ({{ multiverse|count }})
     </p>
 
+    <p>Jump to packageset:
+        {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
+        <a href="#{{ ps }}">{{ ps }}</a> ({{ lst|count }})
+        {% endfor -%}
+    </p>
+
     <h2>Legend and statistics for the displayed data</h2>
-    <table class="grid" width="94%">
+    <table class="grid" width="95%">
         <colgroup>
             <col width="6%" />
-            <col width="44%" />
+            <col width="45%" />
             <col width="11%" span="{{ arch_list|count }}" />
         </colgroup>
         <thead>
@@ -151,6 +169,12 @@
 
     <h2 id="multiverse">multiverse: {{ multiverse|count }} packages (<a href="#top">top</a>)</h2>
     {{ table(multiverse) }}
+
+    <h2>Packagesets</h2>
+    {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
+        <h3 id="{{ ps }}">{{ ps }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
+        {{ table(lst, ps, 'Also belongs to another packageset?') }}
+    {% endfor -%}
 
     <h2 id="main_superseded">main (superseded): {{ main_superseded|count }} packages (<a href="#top">top</a>)</h2>
     {{ table(main_superseded) }}

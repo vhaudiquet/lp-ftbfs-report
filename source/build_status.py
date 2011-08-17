@@ -33,14 +33,6 @@ default_arch_list = []
 find_tagged_bugs = 'ftbfs'
 apt_pkg.InitSystem()
 
-# list of SourcePackages for each component
-components = {
-        'main': [],
-        'restricted': [],
-        'universe': [],
-        'multiverse': [],
-        }
-
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
     if self_url is None:
@@ -106,7 +98,10 @@ class SourcePackage(object):
             else:
                 ts = ubuntu.getSourcePackage(name=srcpkg.name).searchTasks(tags=find_tagged_bugs)
                 srcpkg.tagged_bugs = [t.bug for t in ts]
+            srcpkg.packagesets = set([ps for (ps, srcpkglist) in packagesets.items() if spph.source_package_name in srcpkglist])
             components[spph.component_name].append(srcpkg)
+            for ps in srcpkg.packagesets:
+                packagesets_ftbfs[ps].append(srcpkg)
 
             # add to cache
             cls._cache[spph.source_package_name] = srcpkg
@@ -137,6 +132,13 @@ class SourcePackage(object):
             if arch in ver.logs and ver.logs[arch].buildstate == state:
                 count += 1
         return count
+
+    def getPackagesets(self, name=None):
+        '''Return the list of packagesets without the packageset `name`.'''
+        if name is None:
+            return list(self.packagesets)
+        else:
+            return list(self.packagesets.difference((name,)))
 
 class SPPH(object):
     _cache = dict() # dict with all SPPH objects
@@ -229,8 +231,6 @@ def fetch_pkg_list(archive, series, state, arch_list=default_arch_list, main_arc
             print "  Skipping %s" % build.title
             continue
 
-        print csp_link
-
         print "  %s" % build.title
 
         spph = SPPH(csp_link)
@@ -262,11 +262,14 @@ def generate_page(archive, series, template = 'build_status.html', arch_list = d
     except IOError:
         return
 
-    filter_ftbfs = lambda comp, current: filter(methodcaller('isFTBFS', arch_list, current), sorted(components[comp]))
+    # sort the package lists
+    filter_ftbfs = lambda pkglist, current: filter(methodcaller('isFTBFS', arch_list, current), sorted(pkglist))
     data = {}
     for comp in ('main', 'restricted', 'universe', 'multiverse'):
-        data[comp] = filter_ftbfs(comp, True)
-        data['%s_superseded' % comp] = filter_ftbfs(comp, False)
+        data[comp] = filter_ftbfs(components[comp], True)
+        data['%s_superseded' % comp] = filter_ftbfs(components[comp], False)
+    for pkgset, pkglist in packagesets_ftbfs.items():
+        packagesets_ftbfs[pkgset] = filter_ftbfs(pkglist, True)
 
     # container object to hold the counts and the tooltip
     class StatData(object):
@@ -303,6 +306,7 @@ def generate_page(archive, series, template = 'build_status.html', arch_list = d
     data['series'] = series
     data['arch_list'] = arch_list
     data['lastupdate'] = time.strftime('%F %T %z')
+    data['packagesets'] = packagesets_ftbfs
 
     env = Environment(loader=FileSystemLoader('.'))
     template = env.get_template('build_status.html')
@@ -321,7 +325,7 @@ def generate_csvfile(archive, series, arch_list = default_arch_list):
                     if archs:
                         log = ver.logs[archs[0]].log
                         csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
-                            'explain':"[%s] %s" %(','.join(archs), state)})
+                            'explain':"[%s] %s" %(', '.join(archs), state)})
 
 if __name__ == '__main__':
     # login anonymously to LP
@@ -348,14 +352,26 @@ if __name__ == '__main__':
     for (archive, series) in [(archive, series)]:
         print "Generating FTBFS for %s" % series.fullseriesname
 
-        # Clear all caches and package lists
+        # clear all caches
         PersonTeam.clear()
         SourcePackage.clear()
         SPPH.clear()
-        components['main'] = []
-        components['restricted'] = []
-        components['universe'] = []
-        components['multiverse'] = []
+
+        # list of SourcePackages for each component
+        components = {
+                'main': [],
+                'restricted': [],
+                'universe': [],
+                'multiverse': [],
+                }
+
+        # packagesets for this series
+        packagesets = dict()
+        packagesets_ftbfs = dict()
+        for ps in launchpad.packagesets:
+            if ps.distroseries_link == series.self_link:
+                packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
+                packagesets_ftbfs[ps.name] = [] # empty list to add FTBFS for each package set later
 
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
             fetch_pkg_list(archive, series, state, default_arch_list, main_archive, main_series)
