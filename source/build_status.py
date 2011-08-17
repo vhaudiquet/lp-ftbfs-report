@@ -13,7 +13,7 @@
 # Requirements:
 # - python-launchpadlib
 # - python-apt
-# - python-genshi
+# - python-jinja2
 
 # Uncomment for tracing LP API calls
 #import httplib2
@@ -21,8 +21,9 @@
 
 import os
 import sys
+import time
 import apt_pkg
-import genshi.template
+from jinja2 import (Environment, FileSystemLoader)
 from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
 from launchpadlib.uris import lookup_service_root
@@ -279,11 +280,12 @@ def generate_page(archive, series, template = 'build_status.html', arch_list = d
     data['archive'] = archive
     data['series'] = series
     data['arch_list'] = arch_list
+    data['lastupdate'] = time.strftime('%F %T %z')
 
-    loader = genshi.template.TemplateLoader(['.'])
-    tmpl = loader.load(template)
-    stream = tmpl.generate(**data)
-    out.write(stream.render(method = 'xhtml'))
+    env = Environment(loader=FileSystemLoader('.'))
+    template = env.get_template('build_status.html')
+    stream = template.render(**data)
+    out.write(stream.encode('utf-8'))
     out.close()
 
 def generate_csvfile(archive, series, arch_list = default_arch_list):
