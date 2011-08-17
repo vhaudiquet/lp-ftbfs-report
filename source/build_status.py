@@ -22,6 +22,8 @@
 import sys
 import time
 import apt_pkg
+import json
+from datetime import datetime
 from jinja2 import (Environment, FileSystemLoader)
 from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
@@ -211,9 +213,10 @@ class SPPH(object):
         return u'Changed-By: %s' % (self.changed_by)
 
 
-def fetch_pkg_list(archive, series, state, arch_list=default_arch_list, main_archive=None, main_series=None):
+def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arch_list, main_archive=None, main_series=None):
     print "Processing '%s'" % state
 
+    cur_last_published = None
     # XXX wgrant 2009-09-19: This is an awful hack. We should really
     # just let IArchive.getBuildRecords take a series argument.
     if archive.name == 'primary':
@@ -222,6 +225,12 @@ def fetch_pkg_list(archive, series, state, arch_list=default_arch_list, main_arc
         buildlist = archive.getBuildRecords(build_state = state)
 
     for build in buildlist:
+        if (last_published is not None and
+            build.datebuilt is not None and
+            last_published > build.datebuilt.replace(tzinfo=None)):
+                # leave the loop as we're past the last known published build record
+                break
+
         csp_link = build.current_source_publication_link
         if not csp_link:
             # Build log for an older version
@@ -231,7 +240,9 @@ def fetch_pkg_list(archive, series, state, arch_list=default_arch_list, main_arc
             print "  Skipping %s" % build.title
             continue
 
-        print "  %s" % build.title
+        cur_last_published = build.datebuilt
+
+        print "  %s %s" % (build.datebuilt, build.title)
 
         spph = SPPH(csp_link)
 
@@ -255,6 +266,9 @@ def fetch_pkg_list(archive, series, state, arch_list=default_arch_list, main_arc
         if not spph.current:
             print "    superseded"
         SPPH(csp_link).addBuildLog(build)
+
+    return cur_last_published
+
 
 def generate_page(archive, series, template = 'build_status.html', arch_list = default_arch_list):
     try:
@@ -327,6 +341,38 @@ def generate_csvfile(archive, series, arch_list = default_arch_list):
                         csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
                             'explain':"[%s] %s" %(', '.join(archs), state)})
 
+def load_timestamps(archive, series):
+    '''Load the saved timestamps about the last still published FTBFS build record.'''
+    try:
+        timestamp_file = file('%s-%s.json' % (archive.name, series.name), 'r')
+        tmp = json.load(timestamp_file)
+        timestamps = {}
+        for state, timestamp in tmp.items():
+            try:
+                timestamps[state] = datetime.utcfromtimestamp(int(timestamp))
+            except TypeError:
+                timestamps[state] = None
+        return timestamps
+    except (IOError):
+        return {
+            'Failed to build': None,
+            'Dependency wait': None,
+            'Chroot problem': None,
+            'Failed to upload': None,
+        }
+
+def save_timestamps(archive, series, timestamps):
+    '''Save the timestamps of the last still published FTBFS build record into a JSON file.'''
+    timestamp_file = file('%s-%s.json' % (archive.name, series.name), 'w')
+    tmp = {}
+    for state, timestamp in timestamps.items():
+        if timestamp is not None:
+            tmp[state] = timestamp.strftime('%s')
+        else:
+            tmp[state] = None
+    json.dump(tmp, timestamp_file)
+    timestamp_file.close()
+
 if __name__ == '__main__':
     # login anonymously to LP
     launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service, version=api_version)
@@ -356,6 +402,7 @@ if __name__ == '__main__':
         PersonTeam.clear()
         SourcePackage.clear()
         SPPH.clear()
+        last_published = load_timestamps(archive, series)
 
         # list of SourcePackages for each component
         components = {
@@ -374,7 +421,9 @@ if __name__ == '__main__':
                 packagesets_ftbfs[ps.name] = [] # empty list to add FTBFS for each package set later
 
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
-            fetch_pkg_list(archive, series, state, default_arch_list, main_archive, main_series)
+            last_published[state] = fetch_pkg_list(archive, series, state, last_published[state], default_arch_list, main_archive, main_series)
+
+        save_timestamps(archive, series, last_published)
 
         print "Generating HTML page..."
         generate_page(archive, series)
