@@ -392,6 +392,8 @@ if __name__ == '__main__':
     if archive.name != 'primary':
         main_archive = ubuntu.main_archive
         main_series = ubuntu.current_series
+    else:
+        main_archive = main_series = None
 
     default_arch_list.extend(sys.argv[3:])
 
