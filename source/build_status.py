@@ -271,7 +271,7 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
     return cur_last_published
 
 
-def generate_page(name, archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list):
+def generate_page(name, archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list, notice=None):
     try:
         out = open('../%s.html' % name, 'w')
     except IOError:
@@ -324,6 +324,7 @@ def generate_page(name, archive, series, archs_by_archive, main_archive, templat
     data['archs_by_archive'] = archs_by_archive
     data['lastupdate'] = time.strftime('%F %T %z')
     data['packagesets'] = packagesets_ftbfs
+    data['notice'] = notice
 
     env = Environment(loader=FileSystemLoader('.'))
     template = env.get_template('build_status.html')
@@ -344,10 +345,10 @@ def generate_csvfile(name, arch_list = default_arch_list):
                         csvout.write(linetemplate  % {'name': pkg.name, 'link': log,
                             'explain':"[%s] %s" %(', '.join(archs), state)})
 
-def load_timestamps(archive, series):
+def load_timestamps(name):
     '''Load the saved timestamps about the last still published FTBFS build record.'''
     try:
-        timestamp_file = file('%s-%s.json' % (archive.name, series.name), 'r')
+        timestamp_file = file('%s.json' % name, 'r')
         tmp = json.load(timestamp_file)
         timestamps = {}
         for state, timestamp in tmp.items():
@@ -364,9 +365,9 @@ def load_timestamps(archive, series):
             'Failed to upload': None,
         }
 
-def save_timestamps(archive, series, timestamps):
+def save_timestamps(name, timestamps):
     '''Save the timestamps of the last still published FTBFS build record into a JSON file.'''
-    timestamp_file = file('%s-%s.json' % (archive.name, series.name), 'w')
+    timestamp_file = file('%s.json' % name, 'w')
     tmp = {}
     for state, timestamp in timestamps.items():
         if timestamp is not None:
@@ -385,8 +386,11 @@ if __name__ == '__main__':
     usage = "usage: %prog [options] <archive> <series> <arch> [<arch> ...]"
     parser = OptionParser(usage=usage)
     parser.add_option(
-         "-n", "--name", dest="name",
-         help="File name prefix for the result.")
+        "-f", "--filename", dest="name",
+        help="File name prefix for the result.")
+    parser.add_option(
+        "-n", "--notice", dest="notice_file",
+        help="HTML notice file to include in the page header.")
     (options, args) = parser.parse_args()
     if len(args) < 3:
         parser.error("Need at least 4 arguments.")
@@ -423,7 +427,7 @@ if __name__ == '__main__':
         PersonTeam.clear()
         SourcePackage.clear()
         SPPH.clear()
-        last_published = load_timestamps(archive, series)
+        last_published = load_timestamps(options.name)
 
         # list of SourcePackages for each component
         components = {
@@ -445,9 +449,14 @@ if __name__ == '__main__':
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
             last_published[state] = fetch_pkg_list(archive, series, state, last_published[state], default_arch_list, main_archive, main_series)
 
-        save_timestamps(archive, series, last_published)
+        save_timestamps(options.name, last_published)
+
+        if options.notice_file:
+            notice = open(options.notice_file).read()
+        else:
+            notice = None
 
         print "Generating HTML page..."
-        generate_page(options.name, archive, series, archs_by_archive, main_archive)
+        generate_page(options.name, archive, series, archs_by_archive, main_archive, notice=notice)
         print "Generating CSV file..."
         generate_csvfile(options.name)

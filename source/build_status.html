@@ -135,6 +135,10 @@
         {% endfor -%}
     </p>
 
+    {% if notice %}
+    {{ notice }}
+    {% endif %}
+
     <h2>Legend and statistics for the displayed data</h2>
     <table class="grid" width="95%">
         <colgroup>
