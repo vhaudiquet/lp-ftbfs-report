@@ -271,9 +271,9 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
     return cur_last_published
 
 
-def generate_page(archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list):
+def generate_page(name, archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list):
     try:
-        out = open('../%s-%s.html' % (archive.name, series.name), 'w')
+        out = open('../%s.html' % name, 'w')
     except IOError:
         return
 
@@ -331,8 +331,8 @@ def generate_page(archive, series, archs_by_archive, main_archive, template = 'b
     out.write(stream.encode('utf-8'))
     out.close()
 
-def generate_csvfile(archive, series, arch_list = default_arch_list):
-    csvout = open('../%s-%s.csv' % (archive.name, series.name), 'w')
+def generate_csvfile(name, arch_list = default_arch_list):
+    csvout = open('../%s.csv' % name, 'w')
     linetemplate = '%(name)s,%(link)s,%(explain)s\n'
     for comp in components.values():
         for pkg in comp:
@@ -392,13 +392,16 @@ if __name__ == '__main__':
         parser.error("Need at least 4 arguments.")
 
     try:
-        archive = ubuntu.getArchive(name=sys.argv[1])
+        archive = ubuntu.getArchive(name=args[0])
     except HTTPError:
-        print 'Error: %s is not a valid archive.' % sys.argv[1]
+        print 'Error: %s is not a valid archive.' % args[0]
     try:
-        series = ubuntu.getSeries(name_or_version=sys.argv[2])
+        series = ubuntu.getSeries(name_or_version=args[1])
     except HTTPError:
-            print 'Error: %s is not a valid series.' % sys.argv[2]
+            print 'Error: %s is not a valid series.' % args[1]
+
+    if options.name is None:
+        options.name = '%s-%s' % (archive.name, series.name)
 
     if archive.name != 'primary':
         main_archive = ubuntu.main_archive
@@ -407,7 +410,7 @@ if __name__ == '__main__':
         main_archive = main_series = None
 
     archs_by_archive = dict(main=[], ports=[])
-    for arch in sys.argv[3:]:
+    for arch in args[2:]:
         das = series.getDistroArchSeries(archtag=arch)
         archs_by_archive[das.official and 'main' or 'ports'].append(arch)
     default_arch_list.extend(archs_by_archive['main'])
@@ -445,6 +448,6 @@ if __name__ == '__main__':
         save_timestamps(archive, series, last_published)
 
         print "Generating HTML page..."
-        generate_page(archive, series, archs_by_archive, main_archive)
+        generate_page(options.name, archive, series, archs_by_archive, main_archive)
         print "Generating CSV file..."
-        generate_csvfile(archive, series)
+        generate_csvfile(options.name)
