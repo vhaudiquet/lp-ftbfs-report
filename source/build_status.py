@@ -28,6 +28,7 @@ from jinja2 import (Environment, FileSystemLoader)
 from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
 from operator import (attrgetter, methodcaller)
+from optparse import OptionParser
 
 lp_service = 'production'
 api_version = 'devel'
@@ -380,7 +381,15 @@ if __name__ == '__main__':
     launchpad = Launchpad.login_anonymously('qa-ftbfs', lp_service, version=api_version)
 
     ubuntu = launchpad.distributions['ubuntu']
-    assert len(sys.argv) >= 4
+
+    usage = "usage: %prog [options] <archive> <series> <arch> [<arch> ...]"
+    parser = OptionParser(usage=usage)
+    parser.add_option(
+         "-n", "--name", dest="name",
+         help="File name prefix for the result.")
+    (options, args) = parser.parse_args()
+    if len(args) < 3:
+        parser.error("Need at least 4 arguments.")
 
     try:
         archive = ubuntu.getArchive(name=sys.argv[1])
@@ -419,6 +428,7 @@ if __name__ == '__main__':
                 'restricted': [],
                 'universe': [],
                 'multiverse': [],
+                'partner': [],
                 }
 
         # packagesets for this series
