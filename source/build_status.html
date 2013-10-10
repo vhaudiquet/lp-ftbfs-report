@@ -164,6 +164,7 @@
         </thead>
         <tbody>
             {{ legend_row('even', 'FAILEDTOBUILD', 'Package failed to build') }}
+            {{ legend_row('odd', 'CANCELLED', 'Cancelled build') }}
             {{ legend_row('odd', 'MANUALDEPWAIT', 'Package is waiting on another package') }}
             {{ legend_row('even', 'CHROOTWAIT', 'Failure in the chroot') }}
             {{ legend_row('odd', 'UPLOADFAIL', 'Failed to upload') }}

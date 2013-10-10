@@ -52,6 +52,10 @@
 	background-color:#cc0000;
 }
 
+.CANCELLED {
+	background-color:#aa0000;
+}
+
 .MANUALDEPWAIT {
 	background:#ff9900;
 }

@@ -179,6 +179,7 @@ class SPPH(object):
                     'Dependency wait': 'MANUALDEPWAIT',
                     'Chroot problem': 'CHROOTWAIT',
                     'Failed to upload': 'UPLOADFAIL',
+                    'Cancelled build': 'CANCELLED',
                     }
             self.buildstate = buildstates[build.buildstate]
             self.url = translate_api_web(build.self_link)
@@ -295,7 +296,7 @@ def generate_page(name, archive, series, archs_by_archive, main_archive, templat
 
     # compute some statistics (number of packages for each build failure type)
     stats = {}
-    for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
+    for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'CANCELLED'):
         stats[state] = {}
         for arch in arch_list:
             tooltip = []
@@ -338,7 +339,7 @@ def generate_csvfile(name, arch_list = default_arch_list):
     for comp in components.values():
         for pkg in comp:
             for ver in pkg.versions:
-                for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL'):
+                for state in ('FAILEDTOBUILD', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'CANCELLED'):
                     archs = [ arch for (arch, log) in ver.logs.items() if log.buildstate == state ]
                     if archs:
                         log = ver.logs[archs[0]].log
@@ -363,6 +364,7 @@ def load_timestamps(name):
             'Dependency wait': None,
             'Chroot problem': None,
             'Failed to upload': None,
+            'Cancelled build': None,
         }
 
 def save_timestamps(name, timestamps):
@@ -446,7 +448,7 @@ if __name__ == '__main__':
                 packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
                 packagesets_ftbfs[ps.name] = [] # empty list to add FTBFS for each package set later
 
-        for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload'):
+        for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload', 'Cancelled build'):
             last_published[state] = fetch_pkg_list(archive, series, state, last_published[state], default_arch_list, main_archive, main_series)
 
         save_timestamps(options.name, last_published)
