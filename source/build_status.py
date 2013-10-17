@@ -19,6 +19,7 @@
 #import httplib2
 #httplib2.debuglevel = 1
 
+import os
 import sys
 import time
 import apt_pkg
@@ -273,11 +274,6 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
 
 
 def generate_page(name, archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list, notice=None):
-    try:
-        out = open('../%s.html' % name, 'w')
-    except IOError:
-        return
-
     # sort the package lists
     filter_ftbfs = lambda pkglist, current: filter(methodcaller('isFTBFS', arch_list, current), sorted(pkglist))
     data = {}
@@ -337,8 +333,12 @@ def generate_page(name, archive, series, archs_by_archive, main_archive, templat
     env = Environment(loader=FileSystemLoader('.'))
     template = env.get_template('build_status.html')
     stream = template.render(**data)
+
+    fn = '../%s.html' % name
+    out = open('%s.new' % fn, 'w')
     out.write(stream.encode('utf-8'))
     out.close()
+    os.rename('%s.new' % fn, fn)
 
 def generate_csvfile(name, arch_list = default_arch_list):
     csvout = open('../%s.csv' % name, 'w')
