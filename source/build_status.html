@@ -4,7 +4,7 @@
 {#- Macro definitions -#}
 {% macro legend_row(row_class, field, field_desc) -%}
     <tr class="{{ row_class }}" style="text-align: center;">
-        <td class="{{ field }}">arch ({{ field[0] }})</td>
+        <td class="{{ field }}">arch ({{ abbrs[field] }})</td>
         <td style="text-align: left;">{{ field_desc }}</td>
         {% for arch in arch_list -%}
             {% if stats[field][arch].cnt -%}
@@ -79,7 +79,7 @@
                                 {% if arch in ver.logs -%}
                                     <td class="{{ ver.logs[arch].buildstate }}"
                                         onmouseover="Tip('{{ ver.logs[arch].tooltip|e }}')" onmouseout="UnTip()">
-                                        <a href="{{ ver.logs[arch].url }}">{{ arch }} ({{ ver.logs[arch].buildstate[0] }})</a>
+                                        <a href="{{ ver.logs[arch].url }}">{{ arch }} ({{ abbrs[ver.logs[arch].buildstate] }})</a>
                                         &rarr;
                                         <a href="{{ ver.logs[arch].log }}">Log</a>
                                     </td>

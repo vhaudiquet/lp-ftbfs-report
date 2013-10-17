@@ -326,6 +326,13 @@ def generate_page(name, archive, series, archs_by_archive, main_archive, templat
     data['lastupdate'] = time.strftime('%F %T %z')
     data['packagesets'] = packagesets_ftbfs
     data['notice'] = notice
+    data['abbrs'] = {
+        'FAILEDTOBUILD': 'F',
+        'CANCELLED': 'X',
+        'MANUALDEPWAIT': 'M',
+        'CHROOTWAIT': 'C',
+        'UPLOADFAIL': 'U',
+        }
 
     env = Environment(loader=FileSystemLoader('.'))
     template = env.get_template('build_status.html')
