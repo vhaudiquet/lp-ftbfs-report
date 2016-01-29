@@ -216,7 +216,7 @@ class SPPH(object):
         return u'Changed-By: %s' % (self.changed_by)
 
 
-def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arch_list, main_archive=None, main_series=None):
+def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arch_list, main_archive=None, main_series=None, release_only=False):
     print "Processing '%s'" % state
 
     cur_last_published = None
@@ -263,6 +263,24 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
                     version=spph._lp.source_package_version,
                     status='Published')
                 spph.current = len(main_publications[:1]) > 0
+            elif release_only:
+                release_publications = archive.getPublishedSources(
+                    distro_series=series,
+                    pocket='Release',
+                    exact_match=True,
+                    source_name=spph._lp.source_package_name,
+                    version=spph._lp.source_package_version,
+                    status='Published')
+                spph.current = len(release_publications[:1]) > 0
+                if not spph.current:
+                    release_publications = archive.getPublishedSources(
+                        distro_series=series,
+                        pocket='Release',
+                        exact_match=True,
+                        source_name=spph._lp.source_package_name,
+                        version=spph._lp.source_package_version,
+                        status='Pending')
+                    spph.current = len(release_publications[:1]) > 0
             else:
                 spph.current = True
 
@@ -273,13 +291,13 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
     return cur_last_published
 
 
-def generate_page(name, archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list, notice=None):
+def generate_page(name, archive, series, archs_by_archive, main_archive, template = 'build_status.html', arch_list = default_arch_list, notice=None, release_only=False):
     # sort the package lists
     filter_ftbfs = lambda pkglist, current: filter(methodcaller('isFTBFS', arch_list, current), sorted(pkglist))
     data = {}
     for comp in ('main', 'restricted', 'universe', 'multiverse'):
         data[comp] = filter_ftbfs(components[comp], True)
-        data['%s_superseded' % comp] = filter_ftbfs(components[comp], False)
+        data['%s_superseded' % comp] = filter_ftbfs(components[comp], False) if not release_only else []
     for pkgset, pkglist in packagesets_ftbfs.items():
         packagesets_ftbfs[pkgset] = filter_ftbfs(pkglist, True)
 
@@ -400,6 +418,9 @@ if __name__ == '__main__':
     parser.add_option(
         "-n", "--notice", dest="notice_file",
         help="HTML notice file to include in the page header.")
+    parser.add_option(
+        "--release-only", dest="release_only", action="store_true",
+        help="Only include sources currently published in the release pocket.")
     (options, args) = parser.parse_args()
     if len(args) < 3:
         parser.error("Need at least 4 arguments.")
@@ -456,7 +477,7 @@ if __name__ == '__main__':
                 packagesets_ftbfs[ps.name] = [] # empty list to add FTBFS for each package set later
 
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload', 'Cancelled build'):
-            last_published[state] = fetch_pkg_list(archive, series, state, last_published[state], default_arch_list, main_archive, main_series)
+            last_published[state] = fetch_pkg_list(archive, series, state, last_published[state], default_arch_list, main_archive, main_series, options.release_only)
 
         save_timestamps(options.name, last_published)
 
@@ -466,6 +487,6 @@ if __name__ == '__main__':
             notice = None
 
         print "Generating HTML page..."
-        generate_page(options.name, archive, series, archs_by_archive, main_archive, notice=notice)
+        generate_page(options.name, archive, series, archs_by_archive, main_archive, notice=notice, release_only=options.release_only)
         print "Generating CSV file..."
         generate_csvfile(options.name)
