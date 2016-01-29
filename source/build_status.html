@@ -63,7 +63,7 @@
                             {%- endif %}
                             <td style="text-align: left;" onmouseover="Tip('{{ ver.getChangedBy()|e }}')" onmouseout="UnTip()">
                                 <a href="{{ pkg.url }}/{{ ver.version }}">{{ ver.version }}
-                                    {%- if ver.pocket != 'Release' %}{{ ver.pocket }}{% endif -%}
+                                    {%- if ver.pocket != 'Release' %} ({{ ver.pocket }}){% endif -%}
                                 </a>
                             </td>
                             {%- if loop.first %}
