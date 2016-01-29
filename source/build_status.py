@@ -418,7 +418,7 @@ if __name__ == '__main__':
 
     if archive.name != 'primary':
         main_archive = ubuntu.main_archive
-        main_series = ubuntu.current_series
+        main_series = series
     else:
         main_archive = main_series = None
 
