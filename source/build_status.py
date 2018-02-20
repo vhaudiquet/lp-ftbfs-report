@@ -35,7 +35,7 @@ lp_service = 'production'
 api_version = 'devel'
 default_arch_list = []
 find_tagged_bugs = 'ftbfs'
-apt_pkg.InitSystem()
+apt_pkg.init_system()
 
 # copied from ubuntu-dev-tools, libsupport.py:
 def translate_api_web(self_url):
@@ -85,7 +85,7 @@ class SourcePackage(object):
     class VersionList(list):
         def append(self, item):
             super(SourcePackage.VersionList, self).append(item)
-            self.sort(key = attrgetter('version'), cmp = apt_pkg.VersionCompare)
+            self.sort(key = attrgetter('version'), cmp = apt_pkg.version_compare)
 
     def __new__(cls, spph):
         try:
