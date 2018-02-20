@@ -22,6 +22,7 @@
 import os
 import sys
 import time
+import urllib
 import apt_pkg
 import json
 from datetime import datetime
@@ -107,6 +108,10 @@ class SourcePackage(object):
             for ps in srcpkg.packagesets:
                 packagesets_ftbfs[ps].append(srcpkg)
 
+            srcpkg.teams = set([team for (team, srcpkglist) in teams.items() if spph.source_package_name in srcpkglist])
+            for team in srcpkg.teams:
+                teams_ftbfs[team].append(srcpkg)
+
             # add to cache
             cls._cache[spph.source_package_name] = srcpkg
 
@@ -143,6 +148,13 @@ class SourcePackage(object):
             return list(self.packagesets)
         else:
             return list(self.packagesets.difference((name,)))
+
+    def getTeams(self, name=None):
+        '''Return the list of teams without the team `name`.'''
+        if name is None:
+            return list(self.teams)
+        else:
+            return list(self.teams.difference((name,)))
 
 class SPPH(object):
     _cache = dict() # dict with all SPPH objects
@@ -300,6 +312,8 @@ def generate_page(name, archive, series, archs_by_archive, main_archive, templat
         data['%s_superseded' % comp] = filter_ftbfs(components[comp], False) if not release_only else []
     for pkgset, pkglist in packagesets_ftbfs.items():
         packagesets_ftbfs[pkgset] = filter_ftbfs(pkglist, True)
+    for pkgset, pkglist in teams_ftbfs.items():
+        teams_ftbfs[pkgset] = filter_ftbfs(pkglist, True)
 
     # container object to hold the counts and the tooltip
     class StatData(object):
@@ -339,6 +353,7 @@ def generate_page(name, archive, series, archs_by_archive, main_archive, templat
     data['archs_by_archive'] = archs_by_archive
     data['lastupdate'] = time.strftime('%F %T %z')
     data['packagesets'] = packagesets_ftbfs
+    data['teams'] = teams_ftbfs
     data['notice'] = notice
     data['abbrs'] = {
         'FAILEDTOBUILD': 'F',
@@ -475,6 +490,18 @@ if __name__ == '__main__':
             if ps.distroseries_link == series.self_link:
                 packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
                 packagesets_ftbfs[ps.name] = [] # empty list to add FTBFS for each package set later
+
+        
+        teams_url = urllib.urlopen("http://people.canonical.com/~ubuntu-archive/package-team-mapping.json")
+        try:
+            teams = json.load(teams_url)
+        finally:
+            teams_url.close()
+
+        # Per team list of FTBFS
+        teams_ftbfs = dict()
+        for team in teams:
+            teams_ftbfs[team] = []
 
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload', 'Cancelled build'):
             last_published[state] = fetch_pkg_list(archive, series, state, last_published[state], default_arch_list, main_archive, main_series, options.release_only)

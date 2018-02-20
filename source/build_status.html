@@ -134,6 +134,11 @@
         <a href="#{{ ps }}">{{ ps }}</a> ({{ lst|count }})
         {% endfor -%}
     </p>
+    <p>Jump to team:
+        {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
+        <a href="#{{ team }}">{{ team }}</a> ({{ lst|count }})
+        {% endfor -%}
+    </p>
 
     {% if notice %}
     {{ notice }}
@@ -187,6 +192,12 @@
     {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
         <h3 id="{{ ps }}">{{ ps }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
         {{ table(lst, ps, 'Also belongs to another packageset?') }}
+    {% endfor -%}
+
+    <h2>Teams</h2>
+    {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
+        <h3 id="{{ team }}">{{ team }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
+        {{ table(lst, team, 'Also belongs to another team?') }}
     {% endfor -%}
 
     {% if main_archive %}
