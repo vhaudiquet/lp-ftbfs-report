@@ -286,6 +286,25 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
 
         if not spph.current:
             print "    superseded"
+
+        if main_archive:
+            # If this build failure is not a regression versus the
+            # main archive, do not report it.
+            regressed_build = False
+            main_builds = main_archive.getPublishedSources(
+                exact_match=True,
+                source_name=spph._lp.source_package_name,
+                version=spph._lp.source_package_version)
+            for pub in main_builds:
+                for main_build in pub.getBuilds():
+                    if main_build.arch_tag != build.arch_tag:
+                        continue
+                    if main_build.buildstate == 'Successfully built':
+                        regressed_build = True
+            if not regressed_build:
+                print "  Skipping %s" % build.title
+                continue
+
         SPPH(csp_link).addBuildLog(build)
 
     return cur_last_published
