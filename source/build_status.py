@@ -20,9 +20,9 @@
 #httplib2.debuglevel = 1
 
 import os
+import requests
 import sys
 import time
-import urllib
 import apt_pkg
 import json
 from datetime import datetime
@@ -312,8 +312,8 @@ def generate_page(name, archive, series, archs_by_archive, main_archive, templat
         data['%s_superseded' % comp] = filter_ftbfs(components[comp], False) if not release_only else []
     for pkgset, pkglist in packagesets_ftbfs.items():
         packagesets_ftbfs[pkgset] = filter_ftbfs(pkglist, True)
-    for pkgset, pkglist in teams_ftbfs.items():
-        teams_ftbfs[pkgset] = filter_ftbfs(pkglist, True)
+    for team, pkglist in teams_ftbfs.items():
+        teams_ftbfs[team] = filter_ftbfs(pkglist, True)
 
     # container object to hold the counts and the tooltip
     class StatData(object):
@@ -491,17 +491,10 @@ if __name__ == '__main__':
                 packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
                 packagesets_ftbfs[ps.name] = [] # empty list to add FTBFS for each package set later
 
-        
-        teams_url = urllib.urlopen("http://people.canonical.com/~ubuntu-archive/package-team-mapping.json")
-        try:
-            teams = json.load(teams_url)
-        finally:
-            teams_url.close()
+        teams = requests.get('https://people.canonical.com/~ubuntu-archive/package-team-mapping.json').json()
 
         # Per team list of FTBFS
-        teams_ftbfs = dict()
-        for team in teams:
-            teams_ftbfs[team] = []
+        teams_ftbfs = {team: [] for team in teams}
 
         for state in ('Failed to build', 'Dependency wait', 'Chroot problem', 'Failed to upload', 'Cancelled build'):
             last_published[state] = fetch_pkg_list(archive, series, state, last_published[state], default_arch_list, main_archive, main_series, options.release_only)
