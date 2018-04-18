@@ -194,7 +194,7 @@
         {{ table(lst, ps, 'Also belongs to another packageset?') }}
     {% endfor -%}
 
-    <h2>Teams</h2>
+    <h2>Teams (main only)</h2>
     {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
         <h3 id="{{ team }}">{{ team }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
         {{ table(lst, team, 'Also belongs to another team?') }}

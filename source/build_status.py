@@ -108,7 +108,7 @@ class SourcePackage(object):
             for ps in srcpkg.packagesets:
                 packagesets_ftbfs[ps].append(srcpkg)
 
-            srcpkg.teams = set([team for (team, srcpkglist) in teams.items() if spph.source_package_name in srcpkglist])
+            srcpkg.teams = set([team for (team, srcpkglist) in teams.items() if spph.source_package_name in srcpkglist and spph.component_name == "main"])
             for team in srcpkg.teams:
                 teams_ftbfs[team].append(srcpkg)
 
