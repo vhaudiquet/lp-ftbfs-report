@@ -152,13 +152,12 @@ class SourcePackage(object):
 class MainArchiveBuilds(object):
     _cache = dict()
 
-    def __new__(cls, source, version):
+    def __new__(cls, main_archive, source, version):
         try:
             return cls._cache["%s,%s" % (source, version)]
         except KeyError:
             bfm = super(MainArchiveBuilds, cls).__new__(cls)
             results = {}
-            main_archive = launchpad.distributions['ubuntu'].main_archive
             sourcepubs = main_archive.getPublishedSources(
                 exact_match=True, source_name=source, version=version)
             for pub in sourcepubs:
@@ -323,7 +322,8 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
         if main_archive:
             # If this build failure is not a regression versus the
             # main archive, do not report it.
-            main_builds = MainArchiveBuilds(spph._lp.source_package_name,
+            main_builds = MainArchiveBuilds(main_archive,
+                                            spph._lp.source_package_name,
                                             spph._lp.source_package_version)
             try:
                 if main_builds.results[arch] != 'Successfully built':
