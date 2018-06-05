@@ -134,6 +134,11 @@
         <a href="#{{ ps }}">{{ ps }}</a> ({{ lst|count }})
         {% endfor -%}
     </p>
+    <p>Jump to team:
+        {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
+        <a href="#{{ team }}">{{ team }}</a> ({{ lst|count }})
+        {% endfor -%}
+    </p>
 
     {% if notice %}
     {{ notice }}
@@ -189,6 +194,12 @@
         {{ table(lst, ps, 'Also belongs to another packageset?') }}
     {% endfor -%}
 
+    <h2>Teams (main only)</h2>
+    {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
+        <h3 id="{{ team }}">{{ team }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
+        {{ table(lst, team, 'Also belongs to another team?') }}
+    {% endfor -%}
+
     {% if main_archive %}
     <h2 id="main_superseded">main (superseded): {{ main_superseded|count }} packages (<a href="#top">top</a>)</h2>
     {{ table(main_superseded) }}
@@ -211,6 +222,6 @@
         alt="Valid XHTML 1.1" height="31" width="88"
         style="border-width:0px" /></a>
     </p>
-    <p style="font-size:smaller"><a href="source">source</a></p>
+    <p style="font-size:smaller">Source: <a href="https://code.launchpad.net/~wgrant/lp-ftbfs-report/production">lp:~wgrant/lp-ftbfs-report/production</a></p>
 </body>
 </html>
