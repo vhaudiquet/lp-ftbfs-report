@@ -149,14 +149,14 @@ class SourcePackage(object):
         else:
             return list(self.packagesets.difference((name,)))
 
-class BuildsForMain(object):
+class MainArchiveBuilds(object):
     _cache = dict()
 
     def __new__(cls, source, version):
         try:
             return cls._cache["%s,%s" % (source, version)]
         except KeyError:
-            bfm = super(BuildsForMain, cls).__new__(cls)
+            bfm = super(MainArchiveBuilds, cls).__new__(cls)
             results = {}
             main_archive = launchpad.distributions['ubuntu'].main_archive
             sourcepubs = main_archive.getPublishedSources(
@@ -323,8 +323,8 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
         if main_archive:
             # If this build failure is not a regression versus the
             # main archive, do not report it.
-            main_builds = BuildsForMain(spph._lp.source_package_name,
-                                        spph._lp.source_package_version)
+            main_builds = MainArchiveBuilds(spph._lp.source_package_name,
+                                            spph._lp.source_package_version)
             try:
                 if main_builds.results[arch] != 'Successfully built':
                     print "  Skipping %s" % build.title
