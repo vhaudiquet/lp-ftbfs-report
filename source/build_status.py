@@ -149,12 +149,32 @@ class SourcePackage(object):
         else:
             return list(self.packagesets.difference((name,)))
 
-    def getTeams(self, name=None):
-        '''Return the list of teams without the team `name`.'''
-        if name is None:
-            return list(self.teams)
-        else:
-            return list(self.teams.difference((name,)))
+class MainArchiveBuilds(object):
+    _cache = dict()
+
+    def __new__(cls, main_archive, source, version):
+        try:
+            return cls._cache["%s,%s" % (source, version)]
+        except KeyError:
+            bfm = super(MainArchiveBuilds, cls).__new__(cls)
+            results = {}
+            sourcepubs = main_archive.getPublishedSources(
+                exact_match=True, source_name=source, version=version)
+            for pub in sourcepubs:
+                for build in pub.getBuilds():
+                    # assumes sourcepubs are sorted latest release to oldest,
+                    # so first record wins
+                    if build.arch_tag not in results:
+                        results[build.arch_tag] = build.buildstate
+            bfm.results = results
+            # add to cache
+            cls._cache["%s,%s" % (source, version)] = bfm
+
+            return bfm
+
+    @classmethod
+    def clear(cls):
+        cls._cache.clear()
 
 class SPPH(object):
     _cache = dict() # dict with all SPPH objects
@@ -298,6 +318,20 @@ def fetch_pkg_list(archive, series, state, last_published, arch_list=default_arc
 
         if not spph.current:
             print "    superseded"
+
+        if main_archive:
+            # If this build failure is not a regression versus the
+            # main archive, do not report it.
+            main_builds = MainArchiveBuilds(main_archive,
+                                            spph._lp.source_package_name,
+                                            spph._lp.source_package_version)
+            try:
+                if main_builds.results[arch] != 'Successfully built':
+                    print "  Skipping %s" % build.title
+                    continue
+            except KeyError:
+                pass
+
         SPPH(csp_link).addBuildLog(build)
 
     return cur_last_published
