@@ -23,12 +23,12 @@
     {% if packages|count > 0 -%}
         <table class="grid" width="100%">
             <colgroup>
-                <col width="25%" />
-                <col width="24%" />
+                <col width="23%" />
+                <col width="23%" />
                 <col width="2%" />
-                <col width="8%" span="{{ arch_list|count }}" />
+                <col width="6%" span="{{ arch_list|count }}" />
                 <col width="6%" />
-                <col width="6%" />
+                <col width="4%" />
             </colgroup>
             <thead>
                 <tr>
@@ -97,7 +97,7 @@
                                     {%- endfor %}
                                 </td>
                                 <td rowspan="{{ pkg.versions|count }}">
-                                    <a href="http://packages.qa.debian.org/{{ pkg.name }}">PTS</a>
+                                    <a href="http://tracker.debian.org/pkg/{{ pkg.name }}">PTS</a>
                                     <a href="http://bugs.debian.org/src:{{ pkg.name }}">BTS</a>
                                 </td>
                             {%- endif %}
@@ -121,6 +121,12 @@
 <body>
     <script type="text/javascript" src="source/wz_tooltip.js"></script>
     <h1 id="top">Build status for {{ series.fullseriesname }} in {{ archive.displayname }}</h1>
+
+    <p>{{ generated }}
+    </p>
+
+    <p>{{ description }}
+    </p>
 
     <p>Jump to:
         <a href="#main">main</a> ({{ main|count }})
@@ -149,7 +155,7 @@
         <colgroup>
             <col width="6%" />
             <col width="45%" />
-            <col width="8%" span="{{ arch_list|count }}" />
+            <col width="6%" span="{{ arch_list|count }}" />
         </colgroup>
         <thead>
             <tr>
@@ -170,9 +176,13 @@
         <tbody>
             {{ legend_row('even', 'FAILEDTOBUILD', 'Package failed to build') }}
             {{ legend_row('odd', 'CANCELLED', 'Cancelled build') }}
-            {{ legend_row('odd', 'MANUALDEPWAIT', 'Package is waiting on another package') }}
-            {{ legend_row('even', 'CHROOTWAIT', 'Failure in the chroot') }}
-            {{ legend_row('odd', 'UPLOADFAIL', 'Failed to upload') }}
+            {{ legend_row('even', 'MANUALDEPWAIT', 'Package is waiting on another package') }}
+            {{ legend_row('odd', 'CHROOTWAIT', 'Failure in the chroot') }}
+            {{ legend_row('even', 'UPLOADFAIL', 'Failed to upload') }}
+            {{ legend_row('odd', 'NOREGRFTBFS', 'Package failed to build, no regression') }}
+            {{ legend_row('odd', 'NOREGRDEPWAIT', 'Package is waiting on another package, no regression') }}
+            {{ legend_row('even', 'ALWAYSFTBFS', 'Package always failed to build') }}
+            {{ legend_row('even', 'ALWAYSDEPWAIT', 'Package is waiting on another package, never built') }}
         </tbody>
     </table>
 

@@ -72,6 +72,22 @@
 	background:gray
 }
 
+.ALWAYSFTBFS {
+	background-color:#ba55d3;
+}
+
+.ALWAYSDEPWAIT {
+	background-color:#ffc0cb;
+}
+
+.NOREGRFTBFS {
+	background-color:#00ced1;
+}
+
+.NOREGRDEPWAIT {
+	background-color:#e0ffff;
+}
+
 .center {
 	text-align: center;
 }
