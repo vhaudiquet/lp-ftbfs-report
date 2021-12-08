@@ -11,9 +11,10 @@
 # Rewrite of the old build_status script using LP API
 
 # Requirements:
-# - python-launchpadlib
-# - python-apt
-# - python-jinja2
+# - python3-debian
+# - python3-jinja2
+# - python3-launchpadlib
+# - python3-requests
 
 # Uncomment for tracing LP API calls
 #import httplib2
