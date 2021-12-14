@@ -553,9 +553,9 @@ def generate_page(name, archive, updates_archive, series, archs_by_archive, main
     if updates_archive:
         descr += ' / Updates: %s' % updates_archive.displayname
     if ref_series:
-        descr += ' / Reference series: %s)' % ref_series
+        descr += ' / Reference series: %s' % ref_series
     if regressions_only:
-        descr += ' / Only report regressions)'
+        descr += ' / Only report regressions'
     data['description'] = descr
 
     env = Environment(loader=FileSystemLoader('.'))
