@@ -137,12 +137,12 @@
 
     <p>Jump to packageset:
         {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
-        <a href="#{{ ps }}">{{ ps }}</a> ({{ lst|count }})
+        <a href="#{{ ps }}-pkgset">{{ ps }}</a> ({{ lst|count }})
         {% endfor -%}
     </p>
     <p>Jump to team:
         {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
-        <a href="#{{ team }}">{{ team }}</a> ({{ lst|count }})
+        <a href="#{{ team }}-team">{{ team }}</a> ({{ lst|count }})
         {% endfor -%}
     </p>
 
@@ -200,13 +200,13 @@
 
     <h2>Packagesets</h2>
     {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
-        <h3 id="{{ ps }}">{{ ps }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
+        <h3 id="{{ ps }}-pkgset">{{ ps }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
         {{ table(lst, ps, 'Also belongs to another packageset?') }}
     {% endfor -%}
 
     <h2>Teams (main only)</h2>
     {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
-        <h3 id="{{ team }}">{{ team }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
+        <h3 id="{{ team }}-team">{{ team }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
         {{ table(lst, team, 'Also belongs to another team?') }}
     {% endfor -%}
 
