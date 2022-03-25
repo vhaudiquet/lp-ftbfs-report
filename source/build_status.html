@@ -81,7 +81,11 @@
                                         onmouseover="Tip('{{ ver.logs[arch].tooltip|e }}')" onmouseout="UnTip()">
                                         <a href="{{ ver.logs[arch].url }}">{{ arch }} ({{ abbrs[ver.logs[arch].buildstate] }})</a>
                                         &rarr;
-                                        <a href="{{ ver.logs[arch].log }}">Log</a>
+                                        {% if ver.logs[arch].log -%}
+                                            <a href="{{ ver.logs[arch].log }}">Log</a>
+                                        {% else -%}
+                                            !Log
+                                        {%- endif %}
                                     </td>
                                 {% else -%}
                                     <td />
