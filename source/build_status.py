@@ -66,7 +66,7 @@ class PersonTeam(object):
             except KeyError:
                 return None
             except HTTPError as e:
-                if e.response.status == 410:
+                if e.response.status in (404, 410):
                     personteam = None
                 else:
                     raise
