@@ -430,7 +430,10 @@ def get_reference_build(archive, series, pockets, build, arch_list):
     for pocket in pockets:
         br = reference_builds.get((build.source_package_name, series.name, pocket, build.arch_tag), None)
         if br:
-            print('        cache :', br.source_package_name, br.arch_tag)
+            try:
+                print('        cache :', br.source_package_name, br.arch_tag)
+            except ValueError:
+                print('Unable to access :', build.source_package_name)
             return br
 
     if len(pockets) == 1:
@@ -473,8 +476,11 @@ def get_reference_build(archive, series, pockets, build, arch_list):
             # cache br for any architecture in arch_list
             reference_builds[(build.source_package_name, series.name, b.pocket, b_arch)] = br
 
-            if build.arch_tag == br.arch_tag:
-                found = br
+            try:
+                if build.arch_tag == br.arch_tag:
+                    found = br
+            except ValueError:
+                print('Unable to access :', build.source_package_name)
             # continue, so we don't call getPublishedSources/getPublishedBinaries for other archs again
             # break
         # only interested in the most recent published source
