@@ -1,93 +1,387 @@
-.grid {
-	background-color:#e3e3e3;
-	font-size:12px;
-	font-family:verdana,sans-serif;
-	border:none;
+/* Build Status Report - Custom Styles */
+/* Extends Vanilla CSS Framework */
+
+/* Base styles */
+:root {
+  --color-failed: #c7162b;
+  --color-cancelled: #830b0b;
+  --color-depwait: #f99b11;
+  --color-chrootwait: #0e8420;
+  --color-uploadfail: #0066cc;
+  --color-alwaysftbfs: #772953;
+  --color-alwaysdepwait: #f7c4c4;
+  --color-noregrftbfs: #007aa6;
+  --color-noregrdepwait: #d4f7d4;
 }
 
-.grid td {
-	padding:3px;
-	border:none;
+/* Table container for horizontal scrolling */
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 1rem;
 }
 
-.grid .action_cell {
-	text-align:right;
+/* Table styling */
+.p-table,
+.p-table--mobile-card {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
 }
 
-.grid thead {
-	text-align:left;
-	background-color:#f0f0f0;
-	color:#666;
+.p-table th,
+.p-table td,
+.p-table--mobile-card th,
+.p-table--mobile-card td {
+  padding: 0.75rem;
+  border: 1px solid #cdcdcd;
+  vertical-align: middle;
 }
 
-.grid .heading img {
-	float:right;
-	margin-left:2px;
-	margin-right:3px;
+.p-table thead th,
+.p-table--mobile-card thead th {
+  background-color: #f7f7f7;
+  font-weight: 500;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.grid .heading a {
-	text-decoration:none;
-	color:#333;
+.p-table tbody tr:hover,
+.p-table--mobile-card tbody tr:hover {
+  background-color: #f0f0f0;
 }
 
-.grid td a {
-	text-decoration:none;
-	color:#333;
+/* Row alternating colors */
+.row-even {
+  background-color: #ffffff;
 }
 
-.grid tbody tr:hover {
-	background-color: #f0e68c; /* khaki */
+.row-odd {
+  background-color: #f9f9f9;
 }
 
-.odd {
-	background-color:#edf3fe;
+/* Package name cell */
+.package-name {
+  font-weight: 500;
+  text-align: left;
 }
 
-.even {
-	background-color:#fff;
+.package-name a {
+  color: #06c;
+  text-decoration: none;
 }
 
+.package-name a:hover {
+  text-decoration: underline;
+}
+
+/* Version cell */
+.version-cell {
+  text-align: left;
+  font-family: "Ubuntu Mono", "Consolas", monospace;
+  font-size: 0.8125rem;
+}
+
+/* Build status cells */
+.build-cell {
+  text-align: center;
+  font-size: 0.8125rem;
+}
+
+.build-cell a {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.build-cell a:hover {
+  text-decoration: underline;
+}
+
+.log-link {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  font-size: 0.75rem;
+}
+
+.log-link:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.log-missing {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+  font-size: 0.75rem;
+  color: #fff;
+}
+
+/* Empty cells */
+.empty-cell {
+  text-align: center;
+  color: #999;
+}
+
+/* Status colors for build cells */
 .FAILEDTOBUILD {
-	background-color:#cc0000;
+  background-color: var(--color-failed);
+  color: #ffffff;
 }
 
 .CANCELLED {
-	background-color:#aa0000;
+  background-color: var(--color-cancelled);
+  color: #ffffff;
 }
 
 .MANUALDEPWAIT {
-	background:#ff9900;
+  background-color: var(--color-depwait);
+  color: #111;
 }
 
 .CHROOTWAIT {
-	background:#00ccff;
+  background-color: var(--color-chrootwait);
+  color: #ffffff;
 }
 
 .UPLOADFAIL {
-	background:#00cc00;
-}
-
-.PENDING {
-	background:gray
+  background-color: var(--color-uploadfail);
+  color: #ffffff;
 }
 
 .ALWAYSFTBFS {
-	background-color:#ba55d3;
+  background-color: var(--color-alwaysftbfs);
+  color: #ffffff;
 }
 
 .ALWAYSDEPWAIT {
-	background-color:#ffc0cb;
+  background-color: var(--color-alwaysdepwait);
+  color: #111;
 }
 
 .NOREGRFTBFS {
-	background-color:#00ced1;
+  background-color: var(--color-noregrftbfs);
+  color: #ffffff;
 }
 
 .NOREGRDEPWAIT {
-	background-color:#e0ffff;
+  background-color: var(--color-noregrdepwait);
+  color: #111;
 }
 
-.center {
-	text-align: center;
+/* Legend status cell */
+.status-cell {
+  text-align: center;
+  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 3px;
+  color: #ffffff;
+}
+
+.status-cell.FAILEDTOBUILD { background-color: var(--color-failed); }
+.status-cell.CANCELLED { background-color: var(--color-cancelled); }
+.status-cell.MANUALDEPWAIT { background-color: var(--color-depwait); color: #111; }
+.status-cell.CHROOTWAIT { background-color: var(--color-chrootwait); }
+.status-cell.UPLOADFAIL { background-color: var(--color-uploadfail); }
+.status-cell.ALWAYSFTBFS { background-color: var(--color-alwaysftbfs); }
+.status-cell.ALWAYSDEPWAIT { background-color: var(--color-alwaysdepwait); color: #111; }
+.status-cell.NOREGRFTBFS { background-color: var(--color-noregrftbfs); }
+.status-cell.NOREGRDEPWAIT { background-color: var(--color-noregrdepwait); color: #111; }
+
+/* Bug links */
+.bug-link {
+  display: inline-block;
+  margin-right: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  background-color: #f7f7f7;
+  border: 1px solid #cdcdcd;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  color: #06c;
+  text-decoration: none;
+}
+
+.bug-link:hover {
+  background-color: #e5e5e5;
+  text-decoration: none;
+}
+
+/* External links container */
+.external-links {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+}
+
+.external-links .p-button--base {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* Tooltip styles */
+.has-tooltip {
+  cursor: help;
+  position: relative;
+}
+
+.p-tooltip {
+  z-index: 1000;
+  max-width: 300px;
+}
+
+.p-tooltip__message {
+  background-color: #111;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Navigation header */
+.p-navigation {
+  background-color: #262626;
+}
+
+.p-navigation__logo-title {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 300;
+}
+
+/* Section styling */
+section {
+  margin-bottom: 1rem;
+}
+
+section h2,
+section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Card styling */
+.p-card {
+  background-color: #fff;
+  border: 1px solid #cdcdcd;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.p-card h2,
+.p-card h3 {
+  margin-top: 0;
+}
+
+/* Badge adjustments */
+.p-badge {
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+/* Footer */
+.p-footer {
+  border-top: 1px solid #cdcdcd;
+  padding-top: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .p-table th,
+  .p-table td {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .external-links {
+    flex-direction: column;
+  }
+  
+  .p-card .row {
+    flex-direction: column;
+  }
+  
+  .p-card .col-3,
+  .p-card .col-4 {
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Mobile card table styling */
+@media (max-width: 620px) {
+  .p-table--mobile-card thead {
+    display: none;
+  }
+  
+  .p-table--mobile-card tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #cdcdcd;
+    border-radius: 4px;
+    padding: 0.5rem;
+  }
+  
+  .p-table--mobile-card tbody td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    border: none;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .p-table--mobile-card tbody td:last-child {
+    border-bottom: none;
+  }
+  
+  .p-table--mobile-card tbody td::before {
+    content: attr(aria-label);
+    font-weight: 500;
+    margin-right: 1rem;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Link focus styles for accessibility */
+a:focus {
+  outline: 2px solid #06c;
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .p-navigation,
+  .p-tooltip,
+  .has-tooltip:hover::after {
+    display: none;
+  }
+  
+  .p-table th,
+  .p-table td {
+    border: 1px solid #000;
+  }
+  
+  .FAILEDTOBUILD { background-color: #ffcccc !important; color: #000 !important; }
+  .CANCELLED { background-color: #ffaaaa !important; color: #000 !important; }
+  .MANUALDEPWAIT { background-color: #ffddaa !important; color: #000 !important; }
+  .CHROOTWAIT { background-color: #aaffaa !important; color: #000 !important; }
+  .UPLOADFAIL { background-color: #aaddff !important; color: #000 !important; }
+  .ALWAYSFTBFS { background-color: #ddaaff !important; color: #000 !important; }
+  .ALWAYSDEPWAIT { background-color: #ffd4d4 !important; color: #000 !important; }
+  .NOREGRFTBFS { background-color: #aaffff !important; color: #000 !important; }
+  .NOREGRDEPWAIT { background-color: #ddffdd !important; color: #000 !important; }
 }

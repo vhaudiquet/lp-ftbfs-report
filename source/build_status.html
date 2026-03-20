@@ -1,242 +1,432 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-
-{#- Macro definitions -#}
-{% macro legend_row(row_class, field, field_desc) -%}
-    <tr class="{{ row_class }}" style="text-align: center;">
-        <td class="{{ field }}">arch ({{ abbrs[field] }})</td>
-        <td style="text-align: left;">{{ field_desc }}</td>
-        {% for arch in arch_list -%}
-            {% if stats[field][arch].cnt -%}
-                <td onmouseover="Tip('{{ stats[field][arch].tooltip|e }}')"
-                    onmouseout="UnTip()">
-                    {{ stats[field][arch].cnt }}
-                </td>
-            {% else -%}
-                <td />
-            {% endif -%}
-        {%- endfor %}
-    </tr>
-{%- endmacro %}
-
-{% macro table(packages, packageset=None, set_tooltip='Belongs to a packageset?') -%}
-    {% if packages|count > 0 -%}
-        <table class="grid" width="100%">
-            <colgroup>
-                <col width="23%" />
-                <col width="23%" />
-                <col width="2%" />
-                <col width="6%" span="{{ arch_list|count }}" />
-                <col width="6%" />
-                <col width="4%" />
-            </colgroup>
-            <thead>
-                <tr>
-                    <th rowspan="2">Package</th>
-                    <th rowspan="2">Version</th>
-                    <th rowspan="2" onmouseover="Tip('{{ set_tooltip }}')"
-                        onmouseout="UnTip()">Set?</th>
-                    {% if archs_by_archive['main'] %}
-                    <th colspan="{{ archs_by_archive['main']|count }}" class="center">Main archive</th>
-                    {% endif %}
-                    {% if archs_by_archive['ports'] %}
-                    <th colspan="{{ archs_by_archive['ports']|count }}" class="center">Ports archive</th>
-                    {% endif %}
-                    <th rowspan="2"/>Bugs</th>
-                    <th rowspan="2"/>
-                </tr>
-                <tr>
-                    {% for arch in arch_list -%}
-                        <th class="center">{{ arch }}</th>
-                    {%- endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for pkg in packages -%}
-                    {% set pkg_loop = loop -%}
-                    {% for ver in pkg.versions -%}
-                        <tr class="{{ pkg_loop.cycle('even', 'odd') }}" style="text-align: center;">
-                            {% if loop.first -%}
-                                <td style="text-align: left;" rowspan="{{ pkg.versions|count }}">
-                                    <a href="{{ pkg.url }}">{{ pkg.name }}</a>
-                                </td>
-                            {%- endif %}
-                            <td style="text-align: left;" onmouseover="Tip('{{ ver.getChangedBy()|e }}')" onmouseout="UnTip()">
-                                <a href="{{ pkg.url }}/{{ ver.version }}">{{ ver.version }}
-                                    {%- if ver.pocket != 'Release' %} ({{ ver.pocket }}){% endif -%}
-                                </a>
-                            </td>
-                            {%- if loop.first %}
-                                {%- if pkg.getPackagesets(packageset)|count > 0 %}
-                                    <td rowspan="{{ pkg.versions|count }}"
-                                        onmouseover="Tip('{{ pkg.getPackagesets(packageset)|sort|join(', ') }}')"
-                                        onmouseout="UnTip()">&#10003;</td>
-                                {% else -%}
-                                    <td rowspan="{{ pkg.versions|count }}" />
-                                {% endif -%}
-                            {% endif -%}
-                            {% for arch in arch_list -%}
-                                {% if arch in ver.logs -%}
-                                    <td class="{{ ver.logs[arch].buildstate }}"
-                                        onmouseover="Tip('{{ ver.logs[arch].tooltip|e }}')" onmouseout="UnTip()">
-                                        <a href="{{ ver.logs[arch].url }}">{{ arch }} ({{ abbrs[ver.logs[arch].buildstate] }})</a>
-                                        &rarr;
-                                        {% if ver.logs[arch].log -%}
-                                            <a href="{{ ver.logs[arch].log }}">Log</a>
-                                        {% else -%}
-                                            !Log
-                                        {%- endif %}
-                                    </td>
-                                {% else -%}
-                                    <td />
-                                {%- endif %}
-                            {%- endfor %}
-                            {% if loop.first -%}
-                                <td rowspan="{{ pkg.versions|count }}">
-                                    {% for bug in pkg.tagged_bugs %}
-                                        <a href="https://launchpad.net/bugs/{{ bug.id }}"
-                                           title="{{ bug.title }}">
-                                           {{ bug.id }}
-                                        </a>
-                                    {%- endfor %}
-                                </td>
-                                <td rowspan="{{ pkg.versions|count }}">
-                                    <a href="http://tracker.debian.org/pkg/{{ pkg.name }}">PTS</a>
-                                    <a href="http://bugs.debian.org/src:{{ pkg.name }}">BTS</a>
-                                </td>
-                            {%- endif %}
-                        </tr>
-                    {%- endfor %}
-                {%- endfor %}
-            </tbody>
-        </table>
-    {%- endif %}
-{%- endmacro %}
-
-{#- Main template -#}
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Build status for {{ series.fullseriesname }} in {{ archive.displayname }}</title>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-    <link rel="stylesheet" type="text/css" href="source/style.css" />
+  <link rel="stylesheet" href="https://assets.ubuntu.com/v1/vanilla-framework-version-4.15.0.min.css" />
+  <link rel="stylesheet" type="text/css" href="source/style.css" />
 </head>
 
 <body>
-    <script type="text/javascript" src="source/wz_tooltip.js"></script>
-    <h1 id="top">Build status for {{ series.fullseriesname }} in {{ archive.displayname }}</h1>
+  {#- Macro definitions -#}
+  {% macro legend_row(row_class, field, field_desc) -%}
+    <tr class="{{ row_class }}">
+      <td class="status-cell {{ field }}" data-tooltip="{{ abbrs[field] }}">{{ abbrs[field] }}</td>
+      <td>{{ field_desc }}</td>
+      {% for arch in arch_list -%}
+        {% if stats[field][arch].cnt -%}
+          <td class="has-tooltip" data-tooltip="{{ stats[field][arch].tooltip|e }}">{{ stats[field][arch].cnt }}</td>
+        {% else -%}
+          <td class="empty-cell">—</td>
+        {% endif -%}
+      {%- endfor %}
+    </tr>
+  {%- endmacro %}
 
-    <p>{{ generated }}
-    </p>
+  {% macro table(packages, packageset=None, set_tooltip='Belongs to a packageset?') -%}
+    {% if packages|count > 0 -%}
+      <div class="table-container">
+        <table class="p-table--mobile-card">
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Version</th>
+              <th class="has-tooltip" data-tooltip="{{ set_tooltip }}">Set?</th>
+              {% for arch in arch_list -%}
+                <th class="u-align--center">{{ arch }}</th>
+              {%- endfor %}
+              <th>Bugs</th>
+              <th>Links</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pkg in packages -%}
+              {% set pkg_loop = loop -%}
+              {% for ver in pkg.versions -%}
+                <tr class="{{ pkg_loop.cycle('row-even', 'row-odd') }}">
+                  {% if loop.first -%}
+                    <td class="package-name" rowspan="{{ pkg.versions|count }}" aria-label="Package">
+                      <a href="{{ pkg.url }}">{{ pkg.name }}</a>
+                    </td>
+                  {%- endif %}
+                  <td class="version-cell has-tooltip" data-tooltip="{{ ver.getChangedBy()|e }}" aria-label="Version">
+                    <a href="{{ pkg.url }}/{{ ver.version }}">{{ ver.version }}
+                      {%- if ver.pocket != 'Release' %} <span class="p-label--highlighted">{{ ver.pocket }}</span>{% endif -%}
+                    </a>
+                  </td>
+                  {%- if loop.first %}
+                    {%- if pkg.getPackagesets(packageset)|count > 0 %}
+                      <td class="has-tooltip" data-tooltip="{{ pkg.getPackagesets(packageset)|sort|join(', ') }}" rowspan="{{ pkg.versions|count }}" aria-label="Packageset">
+                        <i class="p-icon--success"></i>
+                      </td>
+                    {% else -%}
+                      <td rowspan="{{ pkg.versions|count }}" aria-label="Packageset">—</td>
+                    {% endif -%}
+                  {% endif -%}
+                  {% for arch in arch_list -%}
+                    {% if arch in ver.logs -%}
+                      <td class="build-cell {{ ver.logs[arch].buildstate }} has-tooltip" data-tooltip="{{ ver.logs[arch].tooltip|e }}" aria-label="Build status for {{ arch }}">
+                        <a href="{{ ver.logs[arch].url }}">{{ abbrs[ver.logs[arch].buildstate] }}</a>
+                        {% if ver.logs[arch].log -%}
+                          <a href="{{ ver.logs[arch].log }}" class="log-link">Log</a>
+                        {% else -%}
+                          <span class="log-missing">!Log</span>
+                        {%- endif %}
+                      </td>
+                    {% else -%}
+                      <td class="empty-cell" aria-label="No build for {{ arch }}">—</td>
+                    {%- endif %}
+                  {%- endfor %}
+                  {% if loop.first -%}
+                    <td rowspan="{{ pkg.versions|count }}" aria-label="Bugs">
+                      {% for bug in pkg.tagged_bugs %}
+                        <a href="https://launchpad.net/bugs/{{ bug.id }}" class="bug-link" data-tooltip="{{ bug.title }}">
+                          #{{ bug.id }}
+                        </a>
+                      {%- endfor %}
+                    </td>
+                    <td rowspan="{{ pkg.versions|count }}" aria-label="External links">
+                      <div class="external-links">
+                        <a href="http://tracker.debian.org/pkg/{{ pkg.name }}" class="p-button--base is-small">PTS</a>
+                        <a href="http://bugs.debian.org/src:{{ pkg.name }}" class="p-button--base is-small">BTS</a>
+                      </div>
+                    </td>
+                {%- endif %}
+                </tr>
+              {%- endfor %}
+            {%- endfor %}
+          </tbody>
+        </table>
+      </div>
+    {%- endif %}
+  {%- endmacro %}
 
-    <p>{{ description }}
-    </p>
+  <header class="p-navigation">
+    <div class="p-navigation__row">
+      <div class="p-navigation__banner">
+        <div class="p-navigation__tagged-logo">
+          <a class="p-navigation__link" href="#top">
+            <span class="p-navigation__logo-title">Build Status Report</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
 
-    <p>Jump to:
-        <a href="#main">main</a> ({{ main|count }})
-        <a href="#restricted">restricted</a> ({{ restricted|count }})
-        <a href="#universe">universe</a> ({{ universe|count }})
-        <a href="#multiverse">multiverse</a> ({{ multiverse|count }})
-    </p>
+  <main class="p-content">
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <h1 class="p-heading--2" id="top">Build status for {{ series.fullseriesname }} in {{ archive.displayname }}</h1>
+          
+          {% if generated %}
+          <p class="p-text--muted">{{ generated }}</p>
+          {% endif %}
+          
+          {% if description %}
+          <p>{{ description }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
 
-    <p>Jump to packageset:
-        {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
-        <a href="#{{ ps }}-pkgset">{{ ps }}</a> ({{ lst|count }})
-        {% endfor -%}
-    </p>
-    <p>Jump to team:
-        {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
-        <a href="#{{ team }}-team">{{ team }}</a> ({{ lst|count }})
-        {% endfor -%}
-    </p>
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <div class="p-card">
+            <h2 class="p-heading--4">Navigation</h2>
+            <div class="row">
+              <div class="col-3">
+                <h3 class="p-heading--5">Components</h3>
+                <ul class="p-list">
+                  <li><a href="#main">main</a> <span class="p-badge--positive">{{ main|count }}</span></li>
+                  <li><a href="#restricted">restricted</a> <span class="p-badge--positive">{{ restricted|count }}</span></li>
+                  <li><a href="#universe">universe</a> <span class="p-badge">{{ universe|count }}</span></li>
+                  <li><a href="#multiverse">multiverse</a> <span class="p-badge">{{ multiverse|count }}</span></li>
+                </ul>
+              </div>
+              <div class="col-4">
+                <h3 class="p-heading--5">Packagesets</h3>
+                <ul class="p-list--inline">
+                  {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
+                  <li><a href="#{{ ps }}-pkgset">{{ ps }}</a> <span class="p-badge">{{ lst|count }}</span></li>
+                  {% endfor -%}
+                </ul>
+              </div>
+              <div class="col-4">
+                <h3 class="p-heading--5">Teams</h3>
+                <ul class="p-list--inline">
+                  {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
+                  <li><a href="#{{ team }}-team">{{ team }}</a> <span class="p-badge">{{ lst|count }}</span></li>
+                  {% endfor -%}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     {% if notice %}
-    {{ notice }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <div class="p-notification--information">
+            <div class="p-notification__content">
+              <p class="p-notification__message">{{ notice }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     {% endif %}
 
-    <h2>Legend and statistics for the displayed data</h2>
-    <table class="grid" width="95%">
-        <colgroup>
-            <col width="6%" />
-            <col width="45%" />
-            <col width="6%" span="{{ arch_list|count }}" />
-        </colgroup>
-        <thead>
-            <tr>
-                <th colspan="2" rowspan="2">Failure type</th>
-                {% if archs_by_archive['main'] %}
-                <th colspan="{{ archs_by_archive['main']|count }}" class="center">Main archive</th>
-                {% endif %}
-                {% if archs_by_archive['ports'] %}
-                <th colspan="{{ archs_by_archive['ports']|count }}" class="center">Ports archive</th>
-                {% endif %}
-            </tr>
-            <tr>
-                {% for arch in arch_list -%}
-                <th class="center">{{ arch }}</th>
-                {%- endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {{ legend_row('even', 'FAILEDTOBUILD', 'Package failed to build') }}
-            {{ legend_row('odd', 'CANCELLED', 'Cancelled build') }}
-            {{ legend_row('even', 'MANUALDEPWAIT', 'Package is waiting on another package') }}
-            {{ legend_row('odd', 'CHROOTWAIT', 'Failure in the chroot') }}
-            {{ legend_row('even', 'UPLOADFAIL', 'Failed to upload') }}
-            {{ legend_row('odd', 'NOREGRFTBFS', 'Package failed to build, no regression') }}
-            {{ legend_row('odd', 'NOREGRDEPWAIT', 'Package is waiting on another package, no regression') }}
-            {{ legend_row('even', 'ALWAYSFTBFS', 'Package always failed to build') }}
-            {{ legend_row('even', 'ALWAYSDEPWAIT', 'Package is waiting on another package, never built') }}
-        </tbody>
-    </table>
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <h2 class="p-heading--3">Legend and statistics</h2>
+          <div class="table-container">
+            <table class="p-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Description</th>
+                  {% for arch in arch_list -%}
+                    <th class="u-align--center">{{ arch }}</th>
+                  {%- endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {{ legend_row('row-even', 'FAILEDTOBUILD', 'Package failed to build') }}
+                {{ legend_row('row-odd', 'CANCELLED', 'Cancelled build') }}
+                {{ legend_row('row-even', 'MANUALDEPWAIT', 'Package is waiting on another package') }}
+                {{ legend_row('row-odd', 'CHROOTWAIT', 'Failure in the chroot') }}
+                {{ legend_row('row-even', 'UPLOADFAIL', 'Failed to upload') }}
+                {{ legend_row('row-odd', 'NOREGRFTBFS', 'Package failed to build, no regression') }}
+                {{ legend_row('row-even', 'NOREGRDEPWAIT', 'Package is waiting on another package, no regression') }}
+                {{ legend_row('row-odd', 'ALWAYSFTBFS', 'Package always failed to build') }}
+                {{ legend_row('row-even', 'ALWAYSDEPWAIT', 'Package is waiting on another package, never built') }}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <h2 id="main">main: {{ main|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(main) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="main">
+            <h2 class="p-heading--3">
+              main
+              <span class="p-badge--positive">{{ main|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h2>
+            {{ table(main) }}
+          </section>
+        </div>
+      </div>
+    </div>
 
-    <h2 id="restricted">restricted: {{ restricted|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(restricted) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="restricted">
+            <h2 class="p-heading--3">
+              restricted
+              <span class="p-badge--positive">{{ restricted|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h2>
+            {{ table(restricted) }}
+          </section>
+        </div>
+      </div>
+    </div>
 
-    <h2 id="universe">universe: {{ universe|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(universe) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="universe">
+            <h2 class="p-heading--3">
+              universe
+              <span class="p-badge">{{ universe|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h2>
+            {{ table(universe) }}
+          </section>
+        </div>
+      </div>
+    </div>
 
-    <h2 id="multiverse">multiverse: {{ multiverse|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(multiverse) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="multiverse">
+            <h2 class="p-heading--3">
+              multiverse
+              <span class="p-badge">{{ multiverse|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h2>
+            {{ table(multiverse) }}
+          </section>
+        </div>
+      </div>
+    </div>
 
-    <h2>Packagesets</h2>
-    {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
-        <h3 id="{{ ps }}-pkgset">{{ ps }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
-        {{ table(lst, ps, 'Also belongs to another packageset?') }}
-    {% endfor -%}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <h2 class="p-heading--3">Packagesets</h2>
+          {% for (ps, lst) in packagesets.items()|sort if lst|count > 0 -%}
+          <section id="{{ ps }}-pkgset">
+            <h3 class="p-heading--4">
+              {{ ps }}
+              <span class="p-badge">{{ lst|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h3>
+            {{ table(lst, ps, 'Also belongs to another packageset?') }}
+          </section>
+          {% endfor -%}
+        </div>
+      </div>
+    </div>
 
-    <h2>Teams (main only)</h2>
-    {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
-        <h3 id="{{ team }}-team">{{ team }}: {{ lst|count }} packages (<a href="#top">top</a>)</h3>
-        {{ table(lst, team, 'Also belongs to another team?') }}
-    {% endfor -%}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <h2 class="p-heading--3">Teams (main only)</h2>
+          {% for (team, lst) in teams.items()|sort if lst|count > 0 -%}
+          <section id="{{ team }}-team">
+            <h3 class="p-heading--4">
+              {{ team }}
+              <span class="p-badge">{{ lst|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h3>
+            {{ table(lst, team, 'Also belongs to another team?') }}
+          </section>
+          {% endfor -%}
+        </div>
+      </div>
+    </div>
 
     {% if main_archive %}
-    <h2 id="main_superseded">main (superseded): {{ main_superseded|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(main_superseded) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <h2 class="p-heading--3">Superseded Packages</h2>
+        </div>
+      </div>
+    </div>
 
-    <h2 id="restricted_superseded">restricted (superseded): {{ restricted_superseded|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(restricted_superseded) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="main_superseded">
+            <h3 class="p-heading--4">
+              main (superseded)
+              <span class="p-badge--caution">{{ main_superseded|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h3>
+            {{ table(main_superseded) }}
+          </section>
+        </div>
+      </div>
+    </div>
 
-    <h2 id="universe_superseded">universe (superseded): {{ universe_superseded|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(universe_superseded) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="restricted_superseded">
+            <h3 class="p-heading--4">
+              restricted (superseded)
+              <span class="p-badge--caution">{{ restricted_superseded|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h3>
+            {{ table(restricted_superseded) }}
+          </section>
+        </div>
+      </div>
+    </div>
 
-    <h2 id="multiverse_superseded">multiverse (superseded): {{ multiverse_superseded|count }} packages (<a href="#top">top</a>)</h2>
-    {{ table(multiverse_superseded) }}
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="universe_superseded">
+            <h3 class="p-heading--4">
+              universe (superseded)
+              <span class="p-badge--caution">{{ universe_superseded|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h3>
+            {{ table(universe_superseded) }}
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <section id="multiverse_superseded">
+            <h3 class="p-heading--4">
+              multiverse (superseded)
+              <span class="p-badge--caution">{{ multiverse_superseded|count }}</span>
+              <a href="#top" class="p-link--soft"><i class="p-icon--chevron-up"></i></a>
+            </h3>
+            {{ table(multiverse_superseded) }}
+          </section>
+        </div>
+      </div>
+    </div>
     {%- endif %}
+  </main>
 
-    <hr/>
-    <p style="font-size:smaller">Last update: {{ lastupdate }}</p>
-    <p>
-    <a href="http://validator.w3.org/check?uri=referer"><img
-        src="http://www.w3.org/Icons/valid-xhtml11-blue"
-        alt="Valid XHTML 1.1" height="31" width="88"
-        style="border-width:0px" /></a>
-    </p>
-    <p style="font-size:smaller">Source: <a href="https://code.launchpad.net/~ubuntu-test-rebuild/lp-ftbfs-report/+git/lp-ftbfs-report">
-lp:~ubuntu-test-rebuild/lp-ftbfs-report</a></p>
+  <footer class="p-strip">
+    <div class="row">
+      <div class="col-12">
+        <div class="p-footer">
+          <p class="p-text--small">Last update: {{ lastupdate }}</p>
+          <p class="p-text--small">
+            Source: <a href="https://code.launchpad.net/~ubuntu-test-rebuild/lp-ftbfs-report/+git/lp-ftbfs-report">
+              lp:~ubuntu-test-rebuild/lp-ftbfs-report
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Simple tooltip implementation
+    document.addEventListener('DOMContentLoaded', function() {
+      const tooltipElements = document.querySelectorAll('.has-tooltip');
+      
+      tooltipElements.forEach(function(el) {
+        el.addEventListener('mouseenter', function(e) {
+          const tooltipText = this.getAttribute('data-tooltip');
+          if (!tooltipText) return;
+          
+          const tooltip = document.createElement('div');
+          tooltip.className = 'p-tooltip p-tooltip--visible';
+          tooltip.id = 'active-tooltip';
+          tooltip.innerHTML = '<span class="p-tooltip__message">' + tooltipText + '</span>';
+          
+          document.body.appendChild(tooltip);
+          
+          const rect = this.getBoundingClientRect();
+          tooltip.style.position = 'absolute';
+          tooltip.style.left = rect.left + (rect.width / 2) + 'px';
+          tooltip.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+          tooltip.style.transform = 'translateX(-50%)';
+        });
+        
+        el.addEventListener('mouseleave', function() {
+          const tooltip = document.getElementById('active-tooltip');
+          if (tooltip) tooltip.remove();
+        });
+      });
+    });
+  </script>
 </body>
 </html>
