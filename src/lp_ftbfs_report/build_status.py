@@ -19,12 +19,15 @@
 # import httplib2
 # httplib2.debuglevel = 1
 
+from __future__ import annotations
+
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from operator import methodcaller
 from optparse import OptionParser
+from typing import Any
 
 # import apt_pkg
 import debian.debian_support
@@ -35,17 +38,17 @@ from launchpadlib.launchpad import Launchpad
 
 lp_service = "production"
 api_version = "devel"
-default_arch_list = []
+default_arch_list: list[str] = []
 find_tagged_bugs = "ftbfs"
 
 # Global variables for package tracking
-launchpad = None
-ubuntu = None
-packagesets = {}
-packagesets_ftbfs = {}
-teams = {}
-teams_ftbfs = {}
-components = {}
+launchpad: Any = None
+ubuntu: Any = None
+packagesets: dict[str, list[str]] = {}
+packagesets_ftbfs: dict[str, list[SourcePackage]] = {}
+teams: dict[str, list[str]] = {}
+teams_ftbfs: dict[str, list[SourcePackage]] = {}
+components: dict[str, list[SourcePackage]] = {}
 # apt_pkg.init_system()
 
 
@@ -58,9 +61,11 @@ def translate_api_web(self_url):
 
 
 class PersonTeam:
-    _cache = {}
+    _cache: dict[str, PersonTeam | None] = {}
+    display_name: str
+    name: str
 
-    def __new__(cls, personteam_link):
+    def __new__(cls, personteam_link: str) -> PersonTeam | None:
         try:
             return cls._cache[personteam_link]
         except KeyError:
@@ -86,18 +91,24 @@ class PersonTeam:
             return personteam
 
     @classmethod
-    def clear(cls):
+    def clear(cls) -> None:
         cls._cache.clear()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.display_name} ({self.name})"
 
 
 class SourcePackage:
-    _cache = {}
+    _cache: dict[str, SourcePackage] = {}
+    name: str
+    url: str
+    versions: VersionList
+    tagged_bugs: list[Any]
+    packagesets: set[str]
+    teams: set[str]
 
     class VersionList(list):
-        def append(self, item):
+        def append(self, item: SPPH) -> None:
             super().append(item)
             # self.sort(key = attrgetter('version'), cmp = apt_pkg.version_compare)
             # self.sort(key = attrgetter('version'))
@@ -106,7 +117,7 @@ class SourcePackage:
             # self.sort(key = functools.cmp_to_key(apt_pkg.version_compare))
             # TypeError: a bytes-like object is required, not 'SPPH'
 
-    def __new__(cls, spph):
+    def __new__(cls, spph: Any) -> SourcePackage:
         try:
             return cls._cache[spph.source_package_name]
         except KeyError:
@@ -144,11 +155,13 @@ class SourcePackage:
             return srcpkg
 
     @classmethod
-    def clear(cls):
+    def clear(cls) -> None:
         cls._cache.clear()
 
-    def isFTBFS(self, arch_list=default_arch_list, current=True):
+    def isFTBFS(self, arch_list: list[str] | None = None, current: bool = True) -> bool:
         """Returns True if at least one FTBFS exists."""
+        if arch_list is None:
+            arch_list = default_arch_list
         for ver in self.versions:
             if ver.current != current:
                 continue
@@ -158,14 +171,14 @@ class SourcePackage:
                     return True
         return False
 
-    def getCount(self, arch, state):
+    def getCount(self, arch: str, state: str) -> int:
         count = 0
         for ver in self.versions:
             if arch in ver.logs and ver.logs[arch].buildstate == state:
                 count += 1
         return count
 
-    def getPackagesets(self, name=None):
+    def getPackagesets(self, name: str | None = None) -> list[str]:
         """Return the list of packagesets without the packageset `name`."""
         if name is None:
             return list(self.packagesets)
@@ -174,14 +187,15 @@ class SourcePackage:
 
 
 class MainArchiveBuilds:
-    _cache = {}
+    _cache: dict[str, MainArchiveBuilds] = {}
+    results: dict[str, str]
 
-    def __new__(cls, main_archive, source, version):
+    def __new__(cls, main_archive: Any, source: str, version: str) -> MainArchiveBuilds:
         try:
             return cls._cache[f"{source},{version}"]
         except KeyError:
             bfm = super().__new__(cls)
-            results = {}
+            results: dict[str, str] = {}
             sourcepubs = main_archive.getPublishedSources(
                 exact_match=True, source_name=source, version=version
             )
@@ -198,14 +212,20 @@ class MainArchiveBuilds:
             return bfm
 
     @classmethod
-    def clear(cls):
+    def clear(cls) -> None:
         cls._cache.clear()
 
 
 class SPPH:
-    _cache = {}  # dict with all SPPH objects
+    _cache: dict[str, SPPH] = {}  # dict with all SPPH objects
+    _lp: Any
+    logs: dict[str, SPPH.BuildLog]
+    version: str
+    pocket: str
+    changed_by: PersonTeam | None
+    current: bool | None
 
-    def __new__(cls, spph_link):
+    def __new__(cls, spph_link: str) -> SPPH:
         try:
             return cls._cache[spph_link]
         except KeyError:
@@ -228,11 +248,16 @@ class SPPH:
             return spph
 
     @classmethod
-    def clear(cls):
+    def clear(cls) -> None:
         cls._cache.clear()
 
     class BuildLog:
-        def __init__(self, build, never_built, no_regression):
+        buildstate: str
+        url: str
+        log: str
+        tooltip: str
+
+        def __init__(self, build: Any, never_built: bool, no_regression: bool) -> None:
             buildstates = {
                 "Failed to build": "FAILEDTOBUILD",
                 "Dependency wait": "MANUALDEPWAIT",
@@ -277,13 +302,13 @@ class SPPH:
                 else:
                     self.tooltip = "Build finish unknown"
 
-    def addBuildLog(self, buildlog, never_built, no_regression):
+    def addBuildLog(self, buildlog: Any, never_built: bool, no_regression: bool) -> None:
         self.logs[buildlog.arch_tag] = self.BuildLog(buildlog, never_built, no_regression)
 
-    def getArch(self, arch):
+    def getArch(self, arch: str) -> BuildLog | None:
         return self.logs.get(arch)
 
-    def getChangedBy(self):
+    def getChangedBy(self) -> str:
         """
         Returns a string with the person who changed this package.
         """
@@ -291,27 +316,30 @@ class SPPH:
 
 
 # cache: (source_package_name, arch_tag) -> build
-update_builds = {}
+update_builds: dict[tuple[str, str], Any] = {}
 
 
 def fetch_pkg_list(
-    archive,
-    series,
-    state,
-    last_published,
-    arch_list=default_arch_list,
-    main_archive=None,
-    main_series=None,
-    release_only=False,
-    is_updates_archive=False,
-    regressions_only=False,
-    ref_series=None,
-):
+    archive: Any,
+    series: Any,
+    state: str,
+    last_published: datetime | None,
+    arch_list: list[str] | None = None,
+    main_archive: Any = None,
+    main_series: Any = None,
+    release_only: bool = False,
+    is_updates_archive: bool = False,
+    regressions_only: bool = False,
+    ref_series: Any = None,
+) -> datetime | None:
     print(f"Processing '{state}'")
     if last_published:
         last_published = last_published.replace(tzinfo=None)
 
-    cur_last_published = None
+    if arch_list is None:
+        arch_list = default_arch_list
+
+    cur_last_published: datetime | None = None
     # XXX wgrant 2009-09-19: This is an awful hack. We should really
     # just let IArchive.getBuildRecords take a series argument.
     if archive.name == "primary":
@@ -482,17 +510,23 @@ def fetch_pkg_list(
 
 
 # cache: (source_package_name, series, pocket, arch_tag) -> build
-reference_builds = {}
+reference_builds: dict[tuple[str, str, str, str], Any] = {}
 
 
-def get_reference_build(archive, series, pockets, build, arch_list):
+def get_reference_build(
+    archive: Any,
+    series: Any,
+    pockets: list[str],
+    build: Any,
+    arch_list: list[str],
+) -> Any:
     """find a successful build in archive/series/pockets with build.arch_tag and build.source_package_name"""
 
     print(
         f"    Find reference build: {build.source_package_name} / {build.arch_tag} / {pockets} / {series.name}"
     )
     # cache lookup
-    br = None
+    br: Any = None
     for pocket in pockets:
         br = reference_builds.get((build.source_package_name, series.name, pocket, build.arch_tag))
         if br:
@@ -551,27 +585,30 @@ def get_reference_build(archive, series, pockets, build, arch_list):
             # break
         # only interested in the most recent published source
         break
-    if found:
+    if found and br is not None:
         print("        found:", br.source_package_name, br.arch_tag)
     return found
 
 
 def generate_page(
-    name,
-    archive,
-    updates_archive,
-    series,
-    archs_by_archive,
-    main_archive,
-    template="build_status.html",
-    arch_list=default_arch_list,
-    notice=None,
-    release_only=False,
-    regressions_only=False,
-    ref_series=None,
-    generated="",
-):
-    def filter_ftbfs(pkglist, current) -> list:
+    name: str,
+    archive: Any,
+    updates_archive: Any,
+    series: Any,
+    archs_by_archive: dict[str, list[str]],
+    main_archive: Any,
+    template: str = "build_status.html",
+    arch_list: list[str] | None = None,
+    notice: str | None = None,
+    release_only: bool = False,
+    regressions_only: bool = False,
+    ref_series: Any = None,
+    generated: str = "",
+) -> None:
+    if arch_list is None:
+        arch_list = default_arch_list
+
+    def filter_ftbfs(pkglist: list[SourcePackage], current: bool) -> list[SourcePackage]:
         # sort the package lists
         return list(
             filter(
@@ -580,7 +617,7 @@ def generate_page(
             )
         )
 
-    data = {}
+    data: dict[str, Any] = {}
     for comp in ("main", "restricted", "universe", "multiverse"):
         data[comp] = filter_ftbfs(components[comp], True)
         data[f"{comp}_superseded"] = (
@@ -666,8 +703,8 @@ def generate_page(
     data["description"] = descr
 
     env = Environment(loader=FileSystemLoader("."))
-    template = env.get_template("build_status.html")
-    stream = template.render(**data)
+    tmpl = env.get_template(template)
+    stream = tmpl.render(**data)
 
     fn = f"../{name}.html"
     with open(f"{fn}.new", "wb") as out:
@@ -709,15 +746,15 @@ def generate_csvfile(name):
                             )
 
 
-def load_timestamps(name):
+def load_timestamps(name: str) -> dict[str, datetime | None]:
     """Load the saved timestamps about the last still published FTBFS build record."""
     try:
         with open(f"{name}.json") as timestamp_file:
             tmp = json.load(timestamp_file)
-        timestamps = {}
+        timestamps: dict[str, datetime | None] = {}
         for state, timestamp in list(tmp.items()):
             try:
-                timestamps[state] = datetime.utcfromtimestamp(int(timestamp))
+                timestamps[state] = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
             except TypeError:
                 timestamps[state] = None
         return timestamps
@@ -732,10 +769,10 @@ def load_timestamps(name):
         }
 
 
-def save_timestamps(name, timestamps):
+def save_timestamps(name: str, timestamps: dict[str, datetime | None]) -> None:
     """Save the timestamps of the last still published FTBFS build record into a JSON file."""
     with open(f"{name}.json", "w") as timestamp_file:
-        tmp = {}
+        tmp: dict[str, str | None] = {}
         for state, timestamp in list(timestamps.items()):
             if timestamp is not None:
                 tmp[state] = timestamp.strftime("%s")
@@ -744,7 +781,7 @@ def save_timestamps(name, timestamps):
         json.dump(tmp, timestamp_file)
 
 
-def main():
+def main() -> None:
     """Main entry point for the FTBFS report generator."""
     global launchpad, ubuntu
 
@@ -831,7 +868,7 @@ def main():
     default_arch_list.extend(archs_by_archive["main"])
     default_arch_list.extend(archs_by_archive["ports"])
 
-    generated_info = datetime.utcnow().strftime("Started: %Y-%m-%d %X")
+    generated_info = datetime.now(timezone.utc).strftime("Started: %Y-%m-%d %X")
 
     # Use the archive and series directly (no need for a loop)
     print(f"Generating FTBFS for {series.fullseriesname}")
@@ -927,7 +964,7 @@ def main():
     else:
         notice = None
 
-    generated_info += datetime.utcnow().strftime("  /  Finished: %Y-%m-%d %X")
+    generated_info += datetime.now(timezone.utc).strftime("  /  Finished: %Y-%m-%d %X")
 
     print("Generating HTML page...")
     generate_page(

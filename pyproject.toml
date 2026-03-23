@@ -20,6 +20,7 @@ dependencies = [
 dev = [
     "ruff>=0.4.0",
     "poethepoet>=0.24.0",
+    "ty>=0.0.24",
 ]
 
 [project.scripts]
@@ -68,10 +69,12 @@ line-ending = "auto"
 dev = [
     "ruff>=0.4.0",
     "poethepoet>=0.24.0",
+    "ty>=0.0.24",
 ]
 
 [tool.poe.tasks]
 lint = "ruff check src/"
 format = "ruff format src/"
-check = ["lint"]
+typecheck = "ty check src/"
+check = ["lint", "typecheck"]
 clean = { shell = "rm -rf .ruff_cache/ dist/ *.egg-info/ && find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true" }

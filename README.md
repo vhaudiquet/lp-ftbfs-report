@@ -16,14 +16,13 @@ uv run lp-ftbfs-report
 
 ### Prerequisites
 
-This project uses [uv](https://docs.astral.sh/uv/) for fast Python package management and [ruff](https://docs.astral.sh/ruff/) for linting and formatting.
+This project uses [uv](https://docs.astral.sh/uv/) for fast Python package management and [ruff](https://docs.astral.sh/ruff/) for linting and formatting, as well as [ty](https://docs.astral.sh/ty/) for type checking.
 
 ### Setup
 
-1. Install uv and ruff if you haven't already.
+1. Install uv if you haven't already.
    ```bash
    sudo snap install astral-uv
-   sudo snap install ruff
    ```
 
 2. Install dependencies:
