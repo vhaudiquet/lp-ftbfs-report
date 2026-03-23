@@ -573,9 +573,11 @@ def generate_page(
 ):
     def filter_ftbfs(pkglist, current) -> list:
         # sort the package lists
-        filter(
-            methodcaller("isFTBFS", arch_list, current),
-            sorted(pkglist, key=lambda src: src.name),
+        return list(
+            filter(
+                methodcaller("isFTBFS", arch_list, current),
+                sorted(pkglist, key=lambda src: src.name),
+            )
         )
 
     data = {}
