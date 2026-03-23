@@ -1,0 +1,5 @@
+.venv
+.ruff_cache
+test-rebuild*.csv
+test-rebuild*.html
+test-rebuild*.json

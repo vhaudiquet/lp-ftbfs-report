@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 # Copyright © 2007-2010 Michael Bienia <geser@ubuntu.com>
 # Authors:
@@ -20,19 +19,19 @@
 # import httplib2
 # httplib2.debuglevel = 1
 
+import json
 import os
-import requests
 import time
+from datetime import datetime
+from operator import methodcaller
+from optparse import OptionParser
 
 # import apt_pkg
 import debian.debian_support
-import json
-from datetime import datetime
+import requests
 from jinja2 import Environment, FileSystemLoader
 from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
-from operator import methodcaller
-from optparse import OptionParser
 
 lp_service = "production"
 api_version = "devel"
@@ -49,15 +48,15 @@ def translate_api_web(self_url):
         return self_url.replace("api.", "").replace("%s/" % api_version, "")
 
 
-class PersonTeam(object):
-    _cache = dict()
+class PersonTeam:
+    _cache = {}
 
     def __new__(cls, personteam_link):
         try:
             return cls._cache[personteam_link]
         except KeyError:
             try:
-                personteam = super(PersonTeam, cls).__new__(cls)
+                personteam = super().__new__(cls)
 
                 # fill the new PersonTeam object with data
                 lp_object = launchpad.load(personteam_link)
@@ -85,12 +84,12 @@ class PersonTeam(object):
         return "%s (%s)" % (self.display_name, self.name)
 
 
-class SourcePackage(object):
-    _cache = dict()
+class SourcePackage:
+    _cache = {}
 
     class VersionList(list):
         def append(self, item):
-            super(SourcePackage.VersionList, self).append(item)
+            super().append(item)
             # self.sort(key = attrgetter('version'), cmp = apt_pkg.version_compare)
             # self.sort(key = attrgetter('version'))
             self.sort(key=lambda x: debian.debian_support.Version(x.version))
@@ -102,7 +101,7 @@ class SourcePackage(object):
         try:
             return cls._cache[spph.source_package_name]
         except KeyError:
-            srcpkg = super(SourcePackage, cls).__new__(cls)
+            srcpkg = super().__new__(cls)
 
             # fill the new SourcePackage object with data
             srcpkg.name = spph.source_package_name
@@ -111,9 +110,7 @@ class SourcePackage(object):
             if find_tagged_bugs is None:
                 srcpkg.tagged_bugs = []
             else:
-                ts = ubuntu.getSourcePackage(name=srcpkg.name).searchTasks(
-                    tags=find_tagged_bugs
-                )
+                ts = ubuntu.getSourcePackage(name=srcpkg.name).searchTasks(tags=find_tagged_bugs)
                 srcpkg.tagged_bugs = [t.bug for t in ts]
             srcpkg.packagesets = set(
                 [
@@ -130,8 +127,7 @@ class SourcePackage(object):
                 [
                     team
                     for (team, srcpkglist) in list(teams.items())
-                    if spph.source_package_name in srcpkglist
-                    and spph.component_name == "main"
+                    if spph.source_package_name in srcpkglist and spph.component_name == "main"
                 ]
             )
             for team in srcpkg.teams:
@@ -172,14 +168,14 @@ class SourcePackage(object):
             return list(self.packagesets.difference((name,)))
 
 
-class MainArchiveBuilds(object):
-    _cache = dict()
+class MainArchiveBuilds:
+    _cache = {}
 
     def __new__(cls, main_archive, source, version):
         try:
             return cls._cache["%s,%s" % (source, version)]
         except KeyError:
-            bfm = super(MainArchiveBuilds, cls).__new__(cls)
+            bfm = super().__new__(cls)
             results = {}
             sourcepubs = main_archive.getPublishedSources(
                 exact_match=True, source_name=source, version=version
@@ -201,19 +197,19 @@ class MainArchiveBuilds(object):
         cls._cache.clear()
 
 
-class SPPH(object):
-    _cache = dict()  # dict with all SPPH objects
+class SPPH:
+    _cache = {}  # dict with all SPPH objects
 
     def __new__(cls, spph_link):
         try:
             return cls._cache[spph_link]
         except KeyError:
-            spph = super(SPPH, cls).__new__(cls)
+            spph = super().__new__(cls)
 
             # fill the new SPPH object with data
             lp_object = launchpad.load(spph_link)
             spph._lp = lp_object
-            spph.logs = dict()
+            spph.logs = {}
             spph.version = lp_object.source_package_version
             spph.pocket = lp_object.pocket
             spph.changed_by = PersonTeam(lp_object.package_creator_link)
@@ -230,7 +226,7 @@ class SPPH(object):
     def clear(cls):
         cls._cache.clear()
 
-    class BuildLog(object):
+    class BuildLog:
         def __init__(self, build, never_built, no_regression):
             buildstates = {
                 "Failed to build": "FAILEDTOBUILD",
@@ -277,9 +273,7 @@ class SPPH(object):
                     self.tooltip = "Build finish unknown"
 
     def addBuildLog(self, buildlog, never_built, no_regression):
-        self.logs[buildlog.arch_tag] = self.BuildLog(
-            buildlog, never_built, no_regression
-        )
+        self.logs[buildlog.arch_tag] = self.BuildLog(buildlog, never_built, no_regression)
 
     def getArch(self, arch):
         return self.logs.get(arch)
@@ -497,9 +491,7 @@ def get_reference_build(archive, series, pockets, build, arch_list):
     # cache lookup
     br = None
     for pocket in pockets:
-        br = reference_builds.get(
-            (build.source_package_name, series.name, pocket, build.arch_tag), None
-        )
+        br = reference_builds.get((build.source_package_name, series.name, pocket, build.arch_tag))
         if br:
             try:
                 print("        cache :", br.source_package_name, br.arch_tag)
@@ -539,17 +531,13 @@ def get_reference_build(archive, series, pockets, build, arch_list):
                 continue
 
             # get the build, state is 'Successfully built'
-            br = reference_builds.get(
-                (build.source_package_name, series.name, b.pocket, b_arch), None
-            )
+            br = reference_builds.get((build.source_package_name, series.name, b.pocket, b_arch))
             if not br:
                 br = b.build
 
             # print '          cand:', br.source_package_name, br.arch_tag, br.buildstate
             # cache br for any architecture in arch_list
-            reference_builds[
-                (build.source_package_name, series.name, b.pocket, b_arch)
-            ] = br
+            reference_builds[(build.source_package_name, series.name, b.pocket, b_arch)] = br
 
             try:
                 if build.arch_tag == br.arch_tag:
@@ -599,7 +587,7 @@ def generate_page(
         teams_ftbfs[team] = filter_ftbfs(pkglist, True)
 
     # container object to hold the counts and the tooltip
-    class StatData(object):
+    class StatData:
         def __init__(self, cnt, cnt_superseded, tooltip):
             self.cnt = cnt
             self.cnt_superseded = cnt_superseded
@@ -625,9 +613,7 @@ def generate_page(
             cnt_sup = 0
             for comp in ("main", "restricted", "universe", "multiverse"):
                 s = sum([pkg.getCount(arch, state) for pkg in data[comp]])
-                s_sup = sum(
-                    [pkg.getCount(arch, state) for pkg in data["%s_superseded" % comp]]
-                )
+                s_sup = sum([pkg.getCount(arch, state) for pkg in data["%s_superseded" % comp]])
                 if s or s_sup:
                     cnt += s
                     cnt_sup += s_sup
@@ -704,9 +690,7 @@ def generate_csvfile(name, arch_list=default_arch_list):
                     "NOREGRDEPWAIT",
                 ):
                     archs = [
-                        arch
-                        for (arch, log) in list(ver.logs.items())
-                        if log.buildstate == state
+                        arch for (arch, log) in list(ver.logs.items()) if log.buildstate == state
                     ]
                     if archs:
                         log = ver.logs[archs[0]].log
@@ -723,7 +707,7 @@ def generate_csvfile(name, arch_list=default_arch_list):
 def load_timestamps(name):
     """Load the saved timestamps about the last still published FTBFS build record."""
     try:
-        timestamp_file = open("%s.json" % name, "r")
+        timestamp_file = open("%s.json" % name)
         tmp = json.load(timestamp_file)
         timestamps = {}
         for state, timestamp in list(tmp.items()):
@@ -732,7 +716,7 @@ def load_timestamps(name):
             except TypeError:
                 timestamps[state] = None
         return timestamps
-    except IOError:
+    except OSError:
         return {
             "Successfully built": None,
             "Failed to build": None,
@@ -765,9 +749,7 @@ if __name__ == "__main__":
 
     usage = "usage: %prog [options] <archive> <series> <arch> [<arch> ...]"
     parser = OptionParser(usage=usage)
-    parser.add_option(
-        "-f", "--filename", dest="name", help="File name prefix for the result."
-    )
+    parser.add_option("-f", "--filename", dest="name", help="File name prefix for the result.")
     parser.add_option(
         "-n",
         "--notice",
@@ -864,8 +846,8 @@ if __name__ == "__main__":
         }
 
         # packagesets for this series
-        packagesets = dict()
-        packagesets_ftbfs = dict()
+        packagesets = {}
+        packagesets_ftbfs = {}
         for ps in launchpad.packagesets:
             if ps.distroseries_link == series.self_link:
                 packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
