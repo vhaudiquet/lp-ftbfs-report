@@ -740,11 +740,13 @@ def save_timestamps(name, timestamps):
     timestamp_file.close()
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the FTBFS report generator."""
+    global launchpad, ubuntu
+
     # login anonymously to LP
     launchpad = Launchpad.login_anonymously("qa-ftbfs", lp_service, version=api_version)
 
-    global ubuntu
     ubuntu = launchpad.distributions["ubuntu"]
 
     usage = "usage: %prog [options] <archive> <series> <arch> [<arch> ...]"
@@ -939,3 +941,7 @@ if __name__ == "__main__":
         )
         print("Generating CSV file...")
         generate_csvfile(options.name)
+
+
+if __name__ == "__main__":
+    main()

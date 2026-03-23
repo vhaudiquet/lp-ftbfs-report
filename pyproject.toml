@@ -32,6 +32,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/lp_ftbfs_report"]
 
+[tool.hatch.build.targets.sdist]
+include = ["src/lp_ftbfs_report"]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
