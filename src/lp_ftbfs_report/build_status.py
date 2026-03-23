@@ -37,6 +37,15 @@ lp_service = "production"
 api_version = "devel"
 default_arch_list = []
 find_tagged_bugs = "ftbfs"
+
+# Global variables for package tracking
+launchpad = None
+ubuntu = None
+packagesets = {}
+packagesets_ftbfs = {}
+teams = {}
+teams_ftbfs = {}
+components = {}
 # apt_pkg.init_system()
 
 
@@ -45,7 +54,7 @@ def translate_api_web(self_url):
     if self_url is None:
         return ""
     else:
-        return self_url.replace("api.", "").replace("%s/" % api_version, "")
+        return self_url.replace("api.", "").replace(f"{api_version}/", "")
 
 
 class PersonTeam:
@@ -81,7 +90,7 @@ class PersonTeam:
         cls._cache.clear()
 
     def __str__(self):
-        return "%s (%s)" % (self.display_name, self.name)
+        return f"{self.display_name} ({self.name})"
 
 
 class SourcePackage:
@@ -105,31 +114,27 @@ class SourcePackage:
 
             # fill the new SourcePackage object with data
             srcpkg.name = spph.source_package_name
-            srcpkg.url = "https://launchpad.net/ubuntu/+source/%s" % srcpkg.name
+            srcpkg.url = f"https://launchpad.net/ubuntu/+source/{srcpkg.name}"
             srcpkg.versions = cls.VersionList()
             if find_tagged_bugs is None:
                 srcpkg.tagged_bugs = []
             else:
                 ts = ubuntu.getSourcePackage(name=srcpkg.name).searchTasks(tags=find_tagged_bugs)
                 srcpkg.tagged_bugs = [t.bug for t in ts]
-            srcpkg.packagesets = set(
-                [
-                    ps
-                    for (ps, srcpkglist) in list(packagesets.items())
-                    if spph.source_package_name in srcpkglist
-                ]
-            )
+            srcpkg.packagesets = {
+                ps
+                for (ps, srcpkglist) in list(packagesets.items())
+                if spph.source_package_name in srcpkglist
+            }
             components[spph.component_name].append(srcpkg)
             for ps in srcpkg.packagesets:
                 packagesets_ftbfs[ps].append(srcpkg)
 
-            srcpkg.teams = set(
-                [
-                    team
-                    for (team, srcpkglist) in list(teams.items())
-                    if spph.source_package_name in srcpkglist and spph.component_name == "main"
-                ]
-            )
+            srcpkg.teams = {
+                team
+                for (team, srcpkglist) in list(teams.items())
+                if spph.source_package_name in srcpkglist and spph.component_name == "main"
+            }
             for team in srcpkg.teams:
                 teams_ftbfs[team].append(srcpkg)
 
@@ -173,7 +178,7 @@ class MainArchiveBuilds:
 
     def __new__(cls, main_archive, source, version):
         try:
-            return cls._cache["%s,%s" % (source, version)]
+            return cls._cache[f"{source},{version}"]
         except KeyError:
             bfm = super().__new__(cls)
             results = {}
@@ -188,7 +193,7 @@ class MainArchiveBuilds:
                         results[build.arch_tag] = build.buildstate
             bfm.results = results
             # add to cache
-            cls._cache["%s,%s" % (source, version)] = bfm
+            cls._cache[f"{source},{version}"] = bfm
 
             return bfm
 
@@ -261,13 +266,13 @@ class SPPH:
                     self.log = ""
 
             if self.buildstate in ("MANUALDEPWAIT", "ALWAYSDEPWAIT", "NOREGRDEPWAIT"):
-                self.tooltip = "waits on %s" % build.dependencies
+                self.tooltip = f"waits on {build.dependencies}"
             elif build.datebuilt is None:
                 self.tooltip = "Broken build"
             else:
                 if build.datebuilt:
-                    self.tooltip = "Build finished on %s" % build.datebuilt.strftime(
-                        "%Y-%m-%d %H:%M:%S UTC"
+                    self.tooltip = "Build finished on {}".format(
+                        build.datebuilt.strftime("%Y-%m-%d %H:%M:%S UTC")
                     )
                 else:
                     self.tooltip = "Build finish unknown"
@@ -282,7 +287,7 @@ class SPPH:
         """
         Returns a string with the person who changed this package.
         """
-        return "Changed-By: %s" % (self.changed_by)
+        return f"Changed-By: {self.changed_by}"
 
 
 # cache: (source_package_name, arch_tag) -> build
@@ -302,7 +307,7 @@ def fetch_pkg_list(
     regressions_only=False,
     ref_series=None,
 ):
-    print("Processing '%s'" % state)
+    print(f"Processing '{state}'")
     if last_published:
         last_published = last_published.replace(tzinfo=None)
 
@@ -329,12 +334,12 @@ def fetch_pkg_list(
             continue
 
         if build.arch_tag not in arch_list:
-            print("  Skipping %s" % build.title)
+            print(f"  Skipping {build.title}")
             continue
 
         cur_last_published = build.datebuilt
 
-        print("  %s %s" % (build.datebuilt, build.title))
+        print(f"  {build.datebuilt} {build.title}")
 
         if is_updates_archive:
             if state == "Successfully built":
@@ -343,8 +348,7 @@ def fetch_pkg_list(
         else:
             if (build.source_package_name, build.arch_tag) in update_builds:
                 print(
-                    "    Skipping %s, build succeeded in updates-archive"
-                    % build.source_package_name
+                    f"    Skipping {build.source_package_name}, build succeeded in updates-archive"
                 )
                 continue
 
@@ -401,9 +405,9 @@ def fetch_pkg_list(
                 spph._lp.source_package_version,
             )
             try:
-                if main_builds.results[arch] != "Successfully built":
+                if main_builds.results[build.arch_tag] != "Successfully built":
                     if regressions_only:
-                        print("  Skipping %s" % build.title)
+                        print(f"  Skipping {build.title}")
                         continue
                     else:
                         no_regression = True
@@ -485,8 +489,7 @@ def get_reference_build(archive, series, pockets, build, arch_list):
     """find a successful build in archive/series/pockets with build.arch_tag and build.source_package_name"""
 
     print(
-        "    Find reference build: %s / %s / %s / %s"
-        % (build.source_package_name, build.arch_tag, pockets, series.name)
+        f"    Find reference build: {build.source_package_name} / {build.arch_tag} / {pockets} / {series.name}"
     )
     # cache lookup
     br = None
@@ -518,7 +521,7 @@ def get_reference_build(archive, series, pockets, build, arch_list):
     for rs in ref_sources:
         if rs.pocket not in pockets:
             continue
-        print("      v=%s, %s" % (rs.source_package_version, rs.pocket))
+        print(f"      v={rs.source_package_version}, {rs.pocket}")
         # getBuilds() doesn't find anything when a package was not (re)built in a series
         binaries = rs.getPublishedBinaries()
         for b in binaries:
@@ -578,7 +581,7 @@ def generate_page(
     data = {}
     for comp in ("main", "restricted", "universe", "multiverse"):
         data[comp] = filter_ftbfs(components[comp], True)
-        data["%s_superseded" % comp] = (
+        data[f"{comp}_superseded"] = (
             filter_ftbfs(components[comp], False) if not release_only else []
         )
     for pkgset, pkglist in list(packagesets_ftbfs.items()):
@@ -613,13 +616,12 @@ def generate_page(
             cnt_sup = 0
             for comp in ("main", "restricted", "universe", "multiverse"):
                 s = sum([pkg.getCount(arch, state) for pkg in data[comp]])
-                s_sup = sum([pkg.getCount(arch, state) for pkg in data["%s_superseded" % comp]])
+                s_sup = sum([pkg.getCount(arch, state) for pkg in data[f"{comp}_superseded"]])
                 if s or s_sup:
                     cnt += s
                     cnt_sup += s_sup
                     tooltip.append(
-                        '<td>%s:</td><td style="text-align:right;">%i (%i superseded)</td>'
-                        % (comp, s, s_sup)
+                        f'<td>{comp}:</td><td style="text-align:right;">{s} ({s_sup} superseded)</td>'
                     )
             if cnt:
                 tooltiphtml = "<table><tr>"
@@ -652,11 +654,11 @@ def generate_page(
         "NOREGRFTBFS": "F",
         "NOREGRDEPWAIT": "M",
     }
-    descr = "Archive: %s" % archive.displayname
+    descr = f"Archive: {archive.displayname}"
     if updates_archive:
-        descr += " / Updates: %s" % updates_archive.displayname
+        descr += f" / Updates: {updates_archive.displayname}"
     if ref_series:
-        descr += " / Reference series: %s" % ref_series
+        descr += f" / Reference series: {ref_series}"
     if regressions_only:
         descr += " / Only report regressions"
     data["description"] = descr
@@ -665,50 +667,51 @@ def generate_page(
     template = env.get_template("build_status.html")
     stream = template.render(**data)
 
-    fn = "../%s.html" % name
-    out = open("%s.new" % fn, "wb")
-    out.write(stream.encode("utf-8"))
-    out.close()
-    os.rename("%s.new" % fn, fn)
+    fn = f"../{name}.html"
+    with open(f"{fn}.new", "wb") as out:
+        out.write(stream.encode("utf-8"))
+    os.rename(f"{fn}.new", fn)
 
 
-def generate_csvfile(name, arch_list=default_arch_list):
-    csvout = open("../%s.csv" % name, "w")
-    linetemplate = "%(name)s,%(link)s,%(explain)s\n"
-    for comp in list(components.values()):
-        for pkg in comp:
-            for ver in pkg.versions:
-                for state in (
-                    "FAILEDTOBUILD",
-                    "MANUALDEPWAIT",
-                    "CHROOTWAIT",
-                    "UPLOADFAIL",
-                    "CANCELLED",
-                    "ALWAYSFTBFS",
-                    "ALWAYSDEPWAIT",
-                    "NOREGRFTBFS",
-                    "NOREGRDEPWAIT",
-                ):
-                    archs = [
-                        arch for (arch, log) in list(ver.logs.items()) if log.buildstate == state
-                    ]
-                    if archs:
-                        log = ver.logs[archs[0]].log
-                        csvout.write(
-                            linetemplate
-                            % {
-                                "name": pkg.name,
-                                "link": log,
-                                "explain": "[%s] %s" % (", ".join(archs), state),
-                            }
-                        )
+def generate_csvfile(name):
+    with open(f"../{name}.csv", "w") as csvout:
+        linetemplate = "%(name)s,%(link)s,%(explain)s\n"
+        for comp in list(components.values()):
+            for pkg in comp:
+                for ver in pkg.versions:
+                    for state in (
+                        "FAILEDTOBUILD",
+                        "MANUALDEPWAIT",
+                        "CHROOTWAIT",
+                        "UPLOADFAIL",
+                        "CANCELLED",
+                        "ALWAYSFTBFS",
+                        "ALWAYSDEPWAIT",
+                        "NOREGRFTBFS",
+                        "NOREGRDEPWAIT",
+                    ):
+                        archs = [
+                            arch
+                            for (arch, log) in list(ver.logs.items())
+                            if log.buildstate == state
+                        ]
+                        if archs:
+                            log = ver.logs[archs[0]].log
+                            csvout.write(
+                                linetemplate
+                                % {
+                                    "name": pkg.name,
+                                    "link": log,
+                                    "explain": "[{}] {}".format(", ".join(archs), state),
+                                }
+                            )
 
 
 def load_timestamps(name):
     """Load the saved timestamps about the last still published FTBFS build record."""
     try:
-        timestamp_file = open("%s.json" % name)
-        tmp = json.load(timestamp_file)
+        with open(f"{name}.json") as timestamp_file:
+            tmp = json.load(timestamp_file)
         timestamps = {}
         for state, timestamp in list(tmp.items()):
             try:
@@ -729,15 +732,14 @@ def load_timestamps(name):
 
 def save_timestamps(name, timestamps):
     """Save the timestamps of the last still published FTBFS build record into a JSON file."""
-    timestamp_file = open("%s.json" % name, "w")
-    tmp = {}
-    for state, timestamp in list(timestamps.items()):
-        if timestamp is not None:
-            tmp[state] = timestamp.strftime("%s")
-        else:
-            tmp[state] = None
-    json.dump(tmp, timestamp_file)
-    timestamp_file.close()
+    with open(f"{name}.json", "w") as timestamp_file:
+        tmp = {}
+        for state, timestamp in list(timestamps.items()):
+            if timestamp is not None:
+                tmp[state] = timestamp.strftime("%s")
+            else:
+                tmp[state] = None
+        json.dump(tmp, timestamp_file)
 
 
 def main():
@@ -786,13 +788,13 @@ def main():
     try:
         archive = ubuntu.getArchive(name=args[0])
     except HTTPError:
-        print("Error: %s is not a valid archive." % args[0])
+        print(f"Error: {args[0]} is not a valid archive.")
 
     if options.updates_archive:
         try:
             updates_archive = ubuntu.getArchive(name=options.updates_archive)
         except HTTPError:
-            print("Error: %s is not a valid archive." % options.updates_archive)
+            print(f"Error: {options.updates_archive} is not a valid archive.")
     else:
         updates_archive = None
         print("no updates-archive is used")
@@ -801,7 +803,7 @@ def main():
         try:
             ref_series = ubuntu.getSeries(name_or_version=options.ref_series)
         except HTTPError:
-            print("Error: %s is not a valid series." % options.ref_series)
+            print(f"Error: {options.ref_series} is not a valid series.")
     else:
         ref_series = None
         print("no reference series is used")
@@ -809,10 +811,10 @@ def main():
     try:
         series = ubuntu.getSeries(name_or_version=args[1])
     except HTTPError:
-        print("Error: %s is not a valid series." % args[1])
+        print(f"Error: {args[1]} is not a valid series.")
 
     if options.name is None:
-        options.name = "%s-%s" % (archive.name, series.name)
+        options.name = f"{archive.name}-{series.name}"
 
     if archive.name != "primary":
         main_archive = ubuntu.main_archive
@@ -820,7 +822,7 @@ def main():
     else:
         main_archive = main_series = None
 
-    archs_by_archive = dict(main=[], ports=[])
+    archs_by_archive = {"main": [], "ports": []}
     for arch in args[2:]:
         das = series.getDistroArchSeries(archtag=arch)
         archs_by_archive[das.official and "main" or "ports"].append(arch)
@@ -829,118 +831,117 @@ def main():
 
     generated_info = datetime.utcnow().strftime("Started: %Y-%m-%d %X")
 
-    for archive, series in [(archive, series)]:
-        print("Generating FTBFS for %s" % series.fullseriesname)
+    # Use the archive and series directly (no need for a loop)
+    print(f"Generating FTBFS for {series.fullseriesname}")
 
-        # clear all caches
-        PersonTeam.clear()
-        SourcePackage.clear()
-        SPPH.clear()
-        last_published = load_timestamps(options.name)
+    # clear all caches
+    PersonTeam.clear()
+    SourcePackage.clear()
+    SPPH.clear()
+    last_published = load_timestamps(options.name)
 
-        # list of SourcePackages for each component
-        components = {
-            "main": [],
-            "restricted": [],
-            "universe": [],
-            "multiverse": [],
-            "partner": [],
+    # list of SourcePackages for each component
+    global packagesets, packagesets_ftbfs, teams, teams_ftbfs, components
+    components = {
+        "main": [],
+        "restricted": [],
+        "universe": [],
+        "multiverse": [],
+    }
+
+    # packagesets for this series
+    packagesets = {}
+    packagesets_ftbfs = {}
+    for ps in launchpad.packagesets:
+        if ps.distroseries_link == series.self_link:
+            packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
+            packagesets_ftbfs[ps.name] = []  # empty list to add FTBFS for each package set later
+
+    teams = requests.get(
+        "https://people.canonical.com/~ubuntu-archive/package-team-mapping.json"
+    ).json()
+
+    # Per team list of FTBFS
+    teams_ftbfs = {team: [] for team in teams}
+
+    if updates_archive:
+        print("XXX: processing updates archive ...")
+        last_updates_published = {
+            "Successfully built": None,
+            "Failed to build": None,
+            "Dependency wait": None,
+            "Chroot problem": None,
+            "Failed to upload": None,
+            "Cancelled build": None,
         }
-
-        # packagesets for this series
-        packagesets = {}
-        packagesets_ftbfs = {}
-        for ps in launchpad.packagesets:
-            if ps.distroseries_link == series.self_link:
-                packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
-                packagesets_ftbfs[
-                    ps.name
-                ] = []  # empty list to add FTBFS for each package set later
-
-        teams = requests.get(
-            "https://people.canonical.com/~ubuntu-archive/package-team-mapping.json"
-        ).json()
-
-        # Per team list of FTBFS
-        teams_ftbfs = {team: [] for team in teams}
-
-        if updates_archive:
-            print("XXX: processing updates archive ...")
-            last_updates_published = {
-                "Successfully built": None,
-                "Failed to build": None,
-                "Dependency wait": None,
-                "Chroot problem": None,
-                "Failed to upload": None,
-                "Cancelled build": None,
-            }
-            for state in (
-                "Successfully built",
-                "Failed to build",
-                "Dependency wait",
-                "Chroot problem",
-                "Failed to upload",
-                "Cancelled build",
-            ):
-                last_updates_published[state] = fetch_pkg_list(
-                    updates_archive,
-                    series,
-                    state,
-                    last_updates_published[state],
-                    default_arch_list,
-                    main_archive,
-                    main_series,
-                    options.release_only,
-                    is_updates_archive=True,
-                    regressions_only=options.regressions_only,
-                    ref_series=ref_series,
-                )
-
-        print("XXX: processing archive ...")
         for state in (
+            "Successfully built",
             "Failed to build",
             "Dependency wait",
             "Chroot problem",
             "Failed to upload",
             "Cancelled build",
         ):
-            last_published[state] = fetch_pkg_list(
-                archive,
+            last_updates_published[state] = fetch_pkg_list(
+                updates_archive,
                 series,
                 state,
-                last_published[state],
+                last_updates_published[state],
                 default_arch_list,
                 main_archive,
                 main_series,
                 options.release_only,
+                is_updates_archive=True,
                 regressions_only=options.regressions_only,
                 ref_series=ref_series,
             )
 
-        save_timestamps(options.name, last_published)
-
-        if options.notice_file:
-            notice = open(options.notice_file).read()
-        else:
-            notice = None
-
-        generated_info += datetime.utcnow().strftime("  /  Finished: %Y-%m-%d %X")
-
-        print("Generating HTML page...")
-        generate_page(
-            options.name,
+    print("XXX: processing archive ...")
+    for state in (
+        "Failed to build",
+        "Dependency wait",
+        "Chroot problem",
+        "Failed to upload",
+        "Cancelled build",
+    ):
+        last_published[state] = fetch_pkg_list(
             archive,
-            updates_archive,
             series,
-            archs_by_archive,
+            state,
+            last_published[state],
+            default_arch_list,
             main_archive,
-            notice=notice,
-            release_only=options.release_only,
-            ref_series=options.ref_series,
-            generated=generated_info,
+            main_series,
+            options.release_only,
+            regressions_only=options.regressions_only,
+            ref_series=ref_series,
         )
-        print("Generating CSV file...")
-        generate_csvfile(options.name)
+
+    save_timestamps(options.name, last_published)
+
+    if options.notice_file:
+        with open(options.notice_file) as f:
+            notice = f.read()
+    else:
+        notice = None
+
+    generated_info += datetime.utcnow().strftime("  /  Finished: %Y-%m-%d %X")
+
+    print("Generating HTML page...")
+    generate_page(
+        options.name,
+        archive,
+        updates_archive,
+        series,
+        archs_by_archive,
+        main_archive,
+        notice=notice,
+        release_only=options.release_only,
+        ref_series=options.ref_series,
+        generated=generated_info,
+    )
+    print("Generating CSV file...")
+    generate_csvfile(options.name)
 
 
 if __name__ == "__main__":
