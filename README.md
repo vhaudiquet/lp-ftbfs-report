@@ -20,9 +20,9 @@ This project uses [uv](https://docs.astral.sh/uv/) for fast Python package manag
 
 ### Setup
 
-1. Install uv if you haven't already.
+1. Install uv if you haven't already. (notice that uv requires classic confinement)
    ```bash
-   sudo snap install astral-uv
+   sudo snap install astral-uv --classic
    ```
 
 2. Install dependencies:
