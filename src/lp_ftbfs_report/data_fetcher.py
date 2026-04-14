@@ -15,18 +15,11 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from lp_ftbfs_report.models import SPPH, MainArchiveBuilds, SourcePackage
-
-# cache: (source_package_name, arch_tag) -> build
-update_builds: dict[tuple[str, str], Any] = {}
-
-# cache: (source_package_name, series, pocket, arch_tag) -> build
-reference_builds: dict[tuple[str, str, str, str], Any] = {}
+from lp_ftbfs_report.fetchers import BaseFetcher
+from lp_ftbfs_report.models import SPPH, SourcePackage
 
 
 def fetch_pkg_list(
-    archive: Any,
-    series: Any,
     state: str,
     last_published: datetime | None,
     launchpad: Any,
@@ -37,24 +30,21 @@ def fetch_pkg_list(
     teams: dict[str, list[str]],
     teams_ftbfs: dict[str, list[SourcePackage]],
     components: dict[str, list[SourcePackage]],
-    arch_list: list[str] | None = None,
+    arch_list: list[str],
     main_archive: Any = None,
-    main_series: Any = None,
-    release_only: bool = False,
     is_updates_archive: bool = False,
     regressions_only: bool = False,
     ref_series: Any = None,
     api_version: str = "devel",
+    fetcher: BaseFetcher | None = None,
 ) -> datetime | None:
-    """Fetch package list with build failures from the archive.
+    """Fetch package list with build failures.
 
     Args:
-        archive: The Launchpad archive to fetch from
-        series: The distro series
         state: Build state to filter by
         last_published: Last published timestamp for incremental updates
-        launchpad: Launchpad instance
-        ubuntu: Ubuntu distribution object
+        launchpad: Launchpad instance (for model compatibility)
+        ubuntu: Ubuntu distribution (for model compatibility)
         find_tagged_bugs: Tag to search for bugs
         packagesets: Dictionary of package sets
         packagesets_ftbfs: Dictionary to store FTBFS packages per packageset
@@ -63,61 +53,48 @@ def fetch_pkg_list(
         components: Dictionary to store packages per component
         arch_list: List of architectures to process
         main_archive: Main archive for comparison
-        main_series: Main series for comparison
-        release_only: Only include release pocket packages
         is_updates_archive: Whether this is an updates archive
         regressions_only: Only report regressions
         ref_series: Reference series for comparison
         api_version: API version string
+        fetcher: Data fetcher instance
 
     Returns:
         The last published timestamp of processed builds
     """
-    print(f"Processing '{state}'")
-    if last_published:
-        last_published = last_published.replace(tzinfo=None)
+    if fetcher is None:
+        raise ValueError("fetcher must be provided")
 
     cur_last_published: datetime | None = None
-    # XXX wgrant 2009-09-19: This is an awful hack. We should really
-    # just let IArchive.getBuildRecords take a series argument.
-    if archive.name == "primary":
-        buildlist = series.getBuildRecords(build_state=state)
-    else:
-        buildlist = archive.getBuildRecords(build_state=state)
 
-    for build in buildlist:
-        if (
-            last_published is not None
-            and build.datebuilt is not None
-            and last_published > build.datebuilt.replace(tzinfo=None)
-        ):
-            # leave the loop as we're past the last known published build record
-            break
+    # Get build records from fetcher
+    for build_record in fetcher.get_build_records(state, arch_list, last_published):
+        cur_last_published = build_record.datebuilt
 
-        csp_link = build.current_source_publication_link
-        if not csp_link:
-            # Build log for an older version
-            continue
-
-        if build.arch_tag not in (arch_list or []):
-            print(f"  Skipping {build.title}")
-            continue
-
-        cur_last_published = build.datebuilt
-
-        print(f"  {build.datebuilt} {build.title}")
-
+        # Handle updates archive logic
         if is_updates_archive:
             if state == "Successfully built":
-                update_builds[(build.source_package_name, build.arch_tag)] = build
+                # Record successful build from updates archive
+                if hasattr(fetcher, "record_update_build"):
+                    fetcher.record_update_build(  # type: ignore[call-non-callable]
+                        build_record.source_package_name, build_record.arch_tag, build_record
+                    )
                 continue
         else:
-            if (build.source_package_name, build.arch_tag) in update_builds:
+            # Check if build succeeded in updates archive
+            if hasattr(
+                fetcher, "check_update_archive_success"
+            ) and fetcher.check_update_archive_success(  # type: ignore[call-non-callable]
+                build_record.source_package_name, build_record.arch_tag
+            ):
                 print(
-                    f"    Skipping {build.source_package_name}, build succeeded in updates-archive"
+                    f"    Skipping {build_record.source_package_name}, "
+                    "build succeeded in updates-archive"
                 )
                 continue
 
+        # Load SPPH and create SourcePackage
+        csp_link = build_record.current_source_publication_link
         spph = SPPH(
             csp_link,
             launchpad=launchpad,
@@ -131,218 +108,47 @@ def fetch_pkg_list(
             components=components,
         )
 
+        # Check current publication status
         if spph.current is None:
-            # If a main archive is specified, we check if the current source
-            # is still published there. If it isn't, then it's out of date.
-            # We should make this obvious.
-            # The main archive will normally be the primary archive, and
-            # probably only makes sense if the target archive is a rebuild.
-            if main_archive:
-                main_publications = main_archive.getPublishedSources(
-                    distro_series=main_series,
-                    exact_match=True,
-                    source_name=spph._lp.source_package_name,
-                    version=spph._lp.source_package_version,
-                    status="Published",
-                )
-                spph.current = len(main_publications[:1]) > 0
-            elif release_only:
-                release_publications = archive.getPublishedSources(
-                    distro_series=series,
-                    pocket="Release",
-                    exact_match=True,
-                    source_name=spph._lp.source_package_name,
-                    version=spph._lp.source_package_version,
-                    status="Published",
-                )
-                spph.current = len(release_publications[:1]) > 0
-                if not spph.current:
-                    release_publications = archive.getPublishedSources(
-                        distro_series=series,
-                        pocket="Release",
-                        exact_match=True,
-                        source_name=spph._lp.source_package_name,
-                        version=spph._lp.source_package_version,
-                        status="Pending",
-                    )
-                    spph.current = len(release_publications[:1]) > 0
-            else:
-                spph.current = True
+            spph.current = fetcher.check_current_publication(
+                spph._lp.source_package_name, spph._lp.source_package_version, spph.pocket
+            )
 
         if not spph.current:
             print("    superseded")
 
+        # Check for regressions
         no_regression = False
         if main_archive:
-            # If this build failure is not a regression versus the
-            # main archive, do not report it.
-            main_builds = MainArchiveBuilds(
-                main_archive,
+            main_build_state = fetcher.get_main_archive_build_state(
                 spph._lp.source_package_name,
                 spph._lp.source_package_version,
+                build_record.arch_tag,
             )
-            try:
-                if main_builds.results[build.arch_tag] != "Successfully built":
-                    if regressions_only:
-                        print(f"  Skipping {build.title}")
-                        continue
-                    else:
-                        no_regression = True
-            except KeyError:
-                pass
+            if main_build_state and main_build_state != "Successfully built":
+                if regressions_only:
+                    print(f"  Skipping {build_record.source_package_name}")
+                    continue
+                else:
+                    no_regression = True
 
-        # set a never_built status
-        already_built = False
+        # Check if never built before
+        never_built = True
         if ref_series:
-            if main_archive:
-                # test rebuild archive
-                reference_archive = main_archive
-                # search for successful build in ref_series
-                ref_build = get_reference_build(
-                    reference_archive,
-                    ref_series,
-                    ["Updates", "Release"],
-                    build,
-                    arch_list or [],
-                )
-                if ref_build:
-                    already_built = True
-                else:
-                    # search for successful build in series
-                    ref_build = get_reference_build(
-                        reference_archive, series, ["Release"], build, arch_list or []
-                    )
-                    if ref_build:
-                        already_built = True
-                    else:
-                        # search for successful build in Updates pocket
-                        ref_build = get_reference_build(
-                            reference_archive, series, ["Updates"], build, arch_list or []
-                        )
-                        if ref_build:
-                            already_built = True
-            else:
-                # primary archive
-                reference_archive = archive
-                # search for successful build in ref_series
-                ref_build = get_reference_build(
-                    reference_archive,
-                    ref_series,
-                    ["Updates", "Release"],
-                    build,
-                    arch_list or [],
-                )
-                if ref_build:
-                    already_built = True
-                else:
-                    # search for successful build in Release pocket
-                    ref_build = get_reference_build(
-                        reference_archive, series, ["Release"], build, arch_list or []
-                    )
-                    if spph.pocket == "Proposed" and ref_build:
-                        already_built = True
-                    else:
-                        # search for successful build in Updates pocket, XXX same as above?
-                        ref_build = get_reference_build(
-                            reference_archive, series, ["Updates"], build, arch_list or []
-                        )
-                        if spph.pocket == "Proposed" and ref_build:
-                            already_built = True
-                    # no reason to look for spph.pocket == 'Proposed'
-        never_built = not already_built
+            ref_build = fetcher.find_reference_build(
+                build_record.source_package_name,
+                build_record.arch_tag,
+                ["Updates", "Release"],
+            )
+            if ref_build:
+                never_built = False
+
         if never_built:
             print("    never built before")
 
-        spph.addBuildLog(build, never_built, no_regression, api_version)
+        spph.addBuildLog(build_record, never_built, no_regression, api_version)
 
     return cur_last_published
-
-
-def get_reference_build(
-    archive: Any,
-    series: Any,
-    pockets: list[str],
-    build: Any,
-    arch_list: list[str],
-) -> Any:
-    """Find a successful build in archive/series/pockets with build.arch_tag and build.source_package_name.
-
-    Args:
-        archive: The Launchpad archive to search
-        series: The distro series
-        pockets: List of pockets to search
-        build: The build to find a reference for
-        arch_list: List of architectures to consider
-
-    Returns:
-        A successful build record or None
-    """
-    print(
-        f"    Find reference build: {build.source_package_name} / {build.arch_tag} / {pockets} / {series.name}"
-    )
-    # cache lookup
-    br: Any = None
-    for pocket in pockets:
-        br = reference_builds.get((build.source_package_name, series.name, pocket, build.arch_tag))
-        if br:
-            try:
-                print("        cache :", br.source_package_name, br.arch_tag)
-            except ValueError:
-                print("Unable to access :", build.source_package_name)
-            return br
-
-    if len(pockets) == 1:
-        ref_sources = archive.getPublishedSources(
-            source_name=build.source_package_name,
-            exact_match=True,
-            distro_series=series,
-            status="Published",
-            pocket=pockets[0],
-        )
-    else:
-        ref_sources = archive.getPublishedSources(
-            source_name=build.source_package_name,
-            exact_match=True,
-            distro_series=series,
-            status="Published",
-        )
-    found = None
-    for rs in ref_sources:
-        if rs.pocket not in pockets:
-            continue
-        print(f"      v={rs.source_package_version}, {rs.pocket}")
-        # getBuilds() doesn't find anything when a package was not (re)built in a series
-        binaries = rs.getPublishedBinaries()
-        for b in binaries:
-            if b.is_debug:
-                continue
-            if b.pocket not in pockets:
-                continue
-            b_arch = b.distro_arch_series_link.split("/")[-1]
-            if b_arch not in arch_list:
-                continue
-
-            # get the build, state is 'Successfully built'
-            br = reference_builds.get((build.source_package_name, series.name, b.pocket, b_arch))
-            if not br:
-                br = b.build
-
-            # print '          cand:', br.source_package_name, br.arch_tag, br.buildstate
-            # cache br for any architecture in arch_list
-            reference_builds[(build.source_package_name, series.name, b.pocket, b_arch)] = br
-
-            try:
-                if build.arch_tag == br.arch_tag:
-                    found = br
-            except ValueError:
-                print("Unable to access :", build.source_package_name)
-            # continue, so we don't call getPublishedSources/getPublishedBinaries for other archs again
-            # break
-        # only interested in the most recent published source
-        break
-    if found and br is not None:
-        print("        found:", br.source_package_name, br.arch_tag)
-    return found
 
 
 def load_timestamps(name: str) -> dict[str, datetime | None]:
@@ -390,9 +196,3 @@ def save_timestamps(name: str, timestamps: dict[str, datetime | None]) -> None:
             else:
                 tmp[state] = None
         json.dump(tmp, timestamp_file)
-
-
-def clear_caches() -> None:
-    """Clear all data caches."""
-    update_builds.clear()
-    reference_builds.clear()

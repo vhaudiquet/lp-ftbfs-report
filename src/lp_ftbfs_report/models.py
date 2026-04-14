@@ -16,8 +16,10 @@ from typing import Any
 import debian.debian_support
 from launchpadlib.errors import HTTPError
 
+from lp_ftbfs_report.fetchers.base import BuildRecord
 
-def translate_api_web(self_url: str, api_version: str = "devel") -> str:
+
+def translate_api_web(self_url: str | None, api_version: str = "devel") -> str:
     """Translate an API URL to a web URL."""
     if self_url is None:
         return ""
@@ -269,7 +271,11 @@ class SPPH:
         tooltip: str
 
         def __init__(
-            self, build: Any, never_built: bool, no_regression: bool, api_version: str = "devel"
+            self,
+            build: BuildRecord,
+            never_built: bool,
+            no_regression: bool,
+            api_version: str = "devel",
         ) -> None:
             buildstates = {
                 "Failed to build": "FAILEDTOBUILD",
@@ -316,7 +322,11 @@ class SPPH:
                     self.tooltip = "Build finish unknown"
 
     def addBuildLog(
-        self, buildlog: Any, never_built: bool, no_regression: bool, api_version: str = "devel"
+        self,
+        buildlog: BuildRecord,
+        never_built: bool,
+        no_regression: bool,
+        api_version: str = "devel",
     ) -> None:
         """Add a build log entry."""
         self.logs[buildlog.arch_tag] = self.BuildLog(
