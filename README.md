@@ -9,8 +9,42 @@ This tool generates reports about packages that failed to build from source on L
 ## Usage
 
 ```bash
-uv run lp-ftbfs-report
+uv run lp-ftbfs-report [options] <archive> <series> <arch> [<arch> ...]
 ```
+
+### Basic Examples
+
+Generate FTBFS report for primary archive:
+```bash
+uv run lp-ftbfs-report primary resolute amd64 arm64 armhf ppc64el s390x riscv64 i386
+```
+
+Generate FTBFS report for a PPA:
+```bash
+uv run lp-ftbfs-report --ppa owner/ppa_name resolute amd64 arm64 armhf ppc64el s390x riscv64 i386
+```
+
+Generate FTBFS report for dummy data (for testing or frontend development):
+```bash
+uv run lp-ftbfs-report --dummy-data tests/fixtures/sample.json oracular amd64
+```
+
+### Command-Line Options
+
+- `-f, --filename`: File name prefix for the result
+- `-n, --notice`: HTML notice file to include in the page header
+- `--regressions-only`: Only report build regressions compared to the main archive
+- `--release-only`: Only include sources published in the release pocket
+- `--updates-archive`: Name of an updates archive
+- `--reference-series`: Series to look for successful builds
+
+#### Data source
+
+There are 4 data sources supported:
+- `primary`: Ubuntu primary archive
+- `archive-test-rebuild-name`: Ubuntu archive test rebuild
+- `--ppa`: Any PPA (format: owner/ppa_name)
+- `--dummy-data`: Dummy data from JSON fixture file, for testing
 
 ## Developing
 
