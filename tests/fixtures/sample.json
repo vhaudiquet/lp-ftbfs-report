@@ -1,0 +1,129 @@
+{
+  "archive": {
+    "name": "test-archive",
+    "displayname": "Test Archive for Testing",
+    "is_ppa": false
+  },
+  "series": {
+    "name": "oracular",
+    "fullseriesname": "Ubuntu Oracular",
+    "self_link": "https://api.launchpad.net/devel/ubuntu/oracular"
+  },
+  "builds": [
+    {
+      "source_package_name": "example-pkg",
+      "source_package_version": "1.0-1",
+      "arch_tag": "amd64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-04-01T12:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1",
+      "build_log_url": "https://launchpad.net/~test/+archive/test/+build/1/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/~test/+archive/test/+build/1",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "example-pkg",
+      "source_package_version": "1.0-1",
+      "arch_tag": "arm64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-04-01T12:05:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1",
+      "build_log_url": "https://launchpad.net/~test/+archive/test/+build/2/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/~test/+archive/test/+build/2",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "depwait-pkg",
+      "source_package_version": "2.0-1ubuntu1",
+      "arch_tag": "amd64",
+      "buildstate": "Dependency wait",
+      "datebuilt": "2026-04-02T10:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2",
+      "build_log_url": null,
+      "upload_log_url": null,
+      "dependencies": "libfoo-dev (>= 1.0)",
+      "self_link": "https://api.launchpad.net/devel/~test/+archive/test/+build/3",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "always-fail-pkg",
+      "source_package_version": "0.5-2",
+      "arch_tag": "amd64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-04-03T14:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/3",
+      "build_log_url": "https://launchpad.net/~test/+archive/test/+build/4/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/~test/+archive/test/+build/4",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    }
+  ],
+  "publications": {
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1": {
+      "source_package_name": "example-pkg",
+      "source_package_version": "1.0-1",
+      "component_name": "universe",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~test-user"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2": {
+      "source_package_name": "depwait-pkg",
+      "source_package_version": "2.0-1ubuntu1",
+      "component_name": "main",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~test-user"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/3": {
+      "source_package_name": "always-fail-pkg",
+      "source_package_version": "0.5-2",
+      "component_name": "universe",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~test-user"
+    }
+  },
+  "packagesets": {
+    "server": ["depwait-pkg"],
+    "desktop": []
+  },
+  "teams": {
+    "server-team": ["depwait-pkg"],
+    "foundations-team": []
+  },
+  "bugs": {
+    "example-pkg": [
+      {
+        "id": 123456,
+        "title": "example-pkg fails to build on arm64",
+        "tags": ["ftbfs", "arm64"]
+      }
+    ],
+    "always-fail-pkg": [
+      {
+        "id": 789012,
+        "title": "always-fail-pkg FTBFS everywhere",
+        "tags": ["ftbfs"]
+      }
+    ]
+  },
+  "reference_builds": {
+    "example-pkg": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-03-15T10:00:00+00:00"
+      }
+    }
+  }
+}

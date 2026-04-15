@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FTBFS Report Test Fixture",
+  "description": "Test data fixture for lp-ftbfs-report testing with DummyFetcher",
+  "type": "object",
+  "required": ["archive", "series", "builds"],
+  "properties": {
+    "archive": {
+      "type": "object",
+      "description": "Archive metadata",
+      "required": ["name", "displayname"],
+      "properties": {
+        "name": {"type": "string"},
+        "displayname": {"type": "string"},
+        "is_ppa": {"type": "boolean", "default": false}
+      }
+    },
+    "series": {
+      "type": "object",
+      "required": ["name", "fullseriesname"],
+      "properties": {
+        "name": {"type": "string"},
+        "fullseriesname": {"type": "string"},
+        "self_link": {"type": "string"}
+      }
+    },
+    "builds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_package_name", "arch_tag", "buildstate"]
+      }
+    }
+  }
+}
