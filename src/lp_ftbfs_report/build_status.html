@@ -7,6 +7,7 @@
   <title>Build status for {{ series.fullseriesname }} in {{ archive.displayname }}</title>
   <link rel="stylesheet" href="https://assets.ubuntu.com/v1/vanilla-framework-version-4.15.0.min.css" />
   <link rel="stylesheet" type="text/css" href="style.css" />
+  <script src="filters.js"></script>
 </head>
 
 <body>
@@ -25,10 +26,10 @@
     </tr>
   {%- endmacro %}
 
-  {% macro table(packages, packageset=None, set_tooltip='Belongs to a packageset?') -%}
+  {% macro table(packages, packageset=None, set_tooltip='Belongs to a packageset?', component=None) -%}
     {% if packages|count > 0 -%}
       <div class="table-container">
-        <table class="p-table--mobile-card">
+        <table class="p-table--mobile-card filterable-table">
           <thead>
             <tr>
               <th>Package</th>
@@ -45,7 +46,7 @@
             {% for pkg in packages -%}
               {% set pkg_loop = loop -%}
               {% for ver in pkg.versions -%}
-                <tr class="{{ pkg_loop.cycle('row-even', 'row-odd') }}">
+                <tr class="{{ pkg_loop.cycle('row-even', 'row-odd') }}" data-package-name="{{ pkg.name }}" data-filters="1">
                   {% if loop.first -%}
                     <td class="package-name" rowspan="{{ pkg.versions|count }}" aria-label="Package">
                       <a href="{{ pkg.url }}">{{ pkg.name }}</a>
@@ -67,7 +68,7 @@
                   {% endif -%}
                   {% for arch in arch_list -%}
                     {% if arch in ver.logs -%}
-                      <td class="build-cell {{ ver.logs[arch].buildstate }} has-tooltip" data-tooltip="{{ ver.logs[arch].tooltip|e }}" aria-label="Build status for {{ arch }}">
+                      <td class="build-cell {{ ver.logs[arch].buildstate }} has-tooltip" data-tooltip="{{ ver.logs[arch].tooltip|e }}" aria-label="Build status for {{ arch }}" data-arch="{{ arch }}" data-status="{{ ver.logs[arch].buildstate }}">
                         <a href="{{ ver.logs[arch].url }}">{{ abbrs[ver.logs[arch].buildstate] }}</a>
                         {% if ver.logs[arch].log -%}
                           <a href="{{ ver.logs[arch].log }}" class="log-link">Log</a>
@@ -182,6 +183,45 @@
       </div>
     </div>
     {% endif %}
+
+    <div class="p-strip is-shallow">
+      <div class="row">
+        <div class="col-12">
+          <h2 class="p-heading--3">Filter Packages</h2>
+          <div class="p-card filter-panel">
+            <div class="row">
+              <div class="col-4">
+                <h4 class="p-heading--5">Architecture</h4>
+                <div id="arch-filters" class="filter-group">
+                  {% for arch in arch_list -%}
+                    <label class="filter-label">
+                      <input type="checkbox" class="filter-checkbox" data-filter-type="arch" value="{{ arch }}" checked>
+                      <span>{{ arch }}</span>
+                    </label>
+                  {%- endfor %}
+                </div>
+              </div>
+              <div class="col-4">
+                <h4 class="p-heading--5">Build Status</h4>
+                <div id="status-filters" class="filter-group">
+                  {% for status in ['FAILEDTOBUILD', 'CANCELLED', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'ALWAYSFTBFS', 'ALWAYSDEPWAIT', 'NOREGRFTBFS', 'NOREGRDEPWAIT'] -%}
+                    <label class="filter-label">
+                      <input type="checkbox" class="filter-checkbox" data-filter-type="status" value="{{ status }}" checked>
+                      <span>{{ status }}</span>
+                    </label>
+                  {%- endfor %}
+                </div>
+              </div>
+              <div class="col-4">
+                <h4 class="p-heading--5">Package Search</h4>
+                <input type="text" id="package-search" class="p-input" placeholder="Search package name...">
+                <button id="reset-filters" class="p-button--base u-margin-top--small">Reset Filters</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="p-strip is-shallow">
       <div class="row">
@@ -398,7 +438,7 @@
   </footer>
 
   <script>
-    // Simple tooltip implementation
+    // Tooltip implementation
     document.addEventListener('DOMContentLoaded', function() {
       const tooltipElements = document.querySelectorAll('.has-tooltip');
       
