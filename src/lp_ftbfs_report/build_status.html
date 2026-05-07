@@ -190,22 +190,42 @@
           <h2 class="p-heading--3">Filter Packages</h2>
           <div class="p-card filter-panel">
             <div class="row">
-              <div class="col-4">
-                <h4 class="p-heading--5">Architecture</h4>
-                <div id="arch-filters" class="filter-group">
+              <div class="col-12">
+                <h4 class="p-heading--5">Architecture Filters</h4>
+                <p class="p-text--small u-text--muted" style="margin-bottom: 1rem;">
+                  <strong>Show:</strong> Include this architecture • 
+                  <strong>Hide:</strong> Exclude this architecture • 
+                  <strong>Only:</strong> Show packages that fail ONLY on selected architectures
+                </p>
+                <div id="arch-filters" class="arch-filter-grid">
                   {% for arch in arch_list -%}
-                    <label class="filter-label">
-                      <input type="checkbox" class="filter-checkbox" data-filter-type="arch" value="{{ arch }}" checked>
-                      <span>{{ arch }}</span>
-                    </label>
+                    <div class="arch-filter-item">
+                      <div class="arch-label">{{ arch }}</div>
+                      <div class="arch-mode-selector">
+                        <label class="mode-option">
+                          <input type="radio" name="arch-{{ arch }}" value="show" data-arch="{{ arch }}" data-mode="show" checked>
+                          <span class="mode-label">Show</span>
+                        </label>
+                        <label class="mode-option">
+                          <input type="radio" name="arch-{{ arch }}" value="hide" data-arch="{{ arch }}" data-mode="hide">
+                          <span class="mode-label">Hide</span>
+                        </label>
+                        <label class="mode-option">
+                          <input type="radio" name="arch-{{ arch }}" value="only" data-arch="{{ arch }}" data-mode="only">
+                          <span class="mode-label">Only</span>
+                        </label>
+                      </div>
+                    </div>
                   {%- endfor %}
                 </div>
               </div>
-              <div class="col-4">
+            </div>
+            <div class="row" style="margin-top: 1.5rem;">
+              <div class="col-8">
                 <h4 class="p-heading--5">Build Status</h4>
-                <div id="status-filters" class="filter-group">
+                <div id="status-filters" class="status-filter-grid">
                   {% for status in ['FAILEDTOBUILD', 'CANCELLED', 'MANUALDEPWAIT', 'CHROOTWAIT', 'UPLOADFAIL', 'ALWAYSFTBFS', 'ALWAYSDEPWAIT', 'NOREGRFTBFS', 'NOREGRDEPWAIT'] -%}
-                    <label class="filter-label">
+                    <label class="status-filter-label">
                       <input type="checkbox" class="filter-checkbox" data-filter-type="status" value="{{ status }}" checked>
                       <span>{{ status }}</span>
                     </label>

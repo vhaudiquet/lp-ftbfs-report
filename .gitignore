@@ -33,3 +33,7 @@ htmlcov/
 test-rebuild*.csv
 test-rebuild*.html
 test-rebuild*.json
+
+# Frontend tests (Bun)
+tests/frontend/node_modules/
+tests/frontend/bun.lockb

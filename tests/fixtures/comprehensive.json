@@ -1,0 +1,567 @@
+{
+  "archive": {
+    "name": "test-archive",
+    "displayname": "Test Archive - Comprehensive Test",
+    "is_ppa": false
+  },
+  "series": {
+    "name": "oracular",
+    "fullseriesname": "Ubuntu Oracular",
+    "self_link": "https://api.launchpad.net/devel/ubuntu/oracular"
+  },
+  "builds": [
+    {
+      "source_package_name": "fails-everywhere",
+      "source_package_version": "1.0-1",
+      "arch_tag": "amd64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T10:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1",
+      "build_log_url": "https://launchpad.net/build/101/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/101",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "fails-everywhere",
+      "source_package_version": "1.0-1",
+      "arch_tag": "arm64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T11:05:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1",
+      "build_log_url": "https://launchpad.net/build/102/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/102",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "fails-everywhere",
+      "source_package_version": "1.0-1",
+      "arch_tag": "riscv64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T12:10:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1",
+      "build_log_url": "https://launchpad.net/build/103/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/103",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "only-amd64-fails",
+      "source_package_version": "2.1-3ubuntu1",
+      "arch_tag": "amd64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T13:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2",
+      "build_log_url": "https://launchpad.net/build/201/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/201",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "only-arm64-fails",
+      "source_package_version": "3.0-1",
+      "arch_tag": "arm64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T14:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/3",
+      "build_log_url": "https://launchpad.net/build/301/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/301",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "only-riscv64-fails",
+      "source_package_version": "1.5-2",
+      "arch_tag": "riscv64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T15:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/4",
+      "build_log_url": "https://launchpad.net/build/401/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/401",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "amd64-arm64-fail",
+      "source_package_version": "4.2-1ubuntu2",
+      "arch_tag": "amd64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T16:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/5",
+      "build_log_url": "https://launchpad.net/build/501/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/501",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "amd64-arm64-fail",
+      "source_package_version": "4.2-1ubuntu2",
+      "arch_tag": "arm64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T17:05:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/5",
+      "build_log_url": "https://launchpad.net/build/502/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/502",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "arm64-riscv64-fail",
+      "source_package_version": "2.7-4",
+      "arch_tag": "arm64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T18:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/6",
+      "build_log_url": "https://launchpad.net/build/601/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/601",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "arm64-riscv64-fail",
+      "source_package_version": "2.7-4",
+      "arch_tag": "riscv64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T19:05:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/6",
+      "build_log_url": "https://launchpad.net/build/602/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/602",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "depwait-amd64-only",
+      "source_package_version": "1.8-1",
+      "arch_tag": "amd64",
+      "buildstate": "Dependency wait",
+      "datebuilt": "2026-05-07T20:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/7",
+      "build_log_url": null,
+      "upload_log_url": null,
+      "dependencies": "libspecial-dev (>= 2.0) [amd64]",
+      "self_link": "https://api.launchpad.net/devel/build/701",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "cancelled-arm64-only",
+      "source_package_version": "0.9-5ubuntu1",
+      "arch_tag": "arm64",
+      "buildstate": "Cancelled build",
+      "datebuilt": "2026-05-07T21:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/8",
+      "build_log_url": null,
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/801",
+      "component_name": "restricted",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "mixed-failures",
+      "source_package_version": "5.0-1",
+      "arch_tag": "amd64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T22:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/9",
+      "build_log_url": "https://launchpad.net/build/901/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/901",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "mixed-failures",
+      "source_package_version": "5.0-1",
+      "arch_tag": "arm64",
+      "buildstate": "Dependency wait",
+      "datebuilt": "2026-05-07T23:05:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/9",
+      "build_log_url": null,
+      "upload_log_url": null,
+      "dependencies": "libfoo-dev",
+      "self_link": "https://api.launchpad.net/devel/build/902",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "mixed-failures",
+      "source_package_version": "5.0-1",
+      "arch_tag": "riscv64",
+      "buildstate": "Cancelled build",
+      "datebuilt": "2026-05-07T10:10:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/9",
+      "build_log_url": null,
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/903",
+      "component_name": "main",
+      "pocket": "Release",
+      "is_current": true
+    },
+    {
+      "source_package_name": "regression-amd64",
+      "source_package_version": "2.0-1ubuntu1",
+      "arch_tag": "amd64",
+      "buildstate": "Failed to build",
+      "datebuilt": "2026-05-07T11:00:00+00:00",
+      "current_source_publication_link": "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/10",
+      "build_log_url": "https://launchpad.net/build/1001/+files/buildlog.txt.gz",
+      "upload_log_url": null,
+      "dependencies": null,
+      "self_link": "https://api.launchpad.net/devel/build/1001",
+      "component_name": "universe",
+      "pocket": "Release",
+      "is_current": true
+    }
+  ],
+  "publications": {
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1": {
+      "source_package_name": "fails-everywhere",
+      "source_package_version": "1.0-1",
+      "component_name": "universe",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~test-user"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2": {
+      "source_package_name": "only-amd64-fails",
+      "source_package_version": "2.1-3ubuntu1",
+      "component_name": "main",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~server-team"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/3": {
+      "source_package_name": "only-arm64-fails",
+      "source_package_version": "3.0-1",
+      "component_name": "main",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~foundations-team"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/4": {
+      "source_package_name": "only-riscv64-fails",
+      "source_package_version": "1.5-2",
+      "component_name": "universe",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~community-dev"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/5": {
+      "source_package_name": "amd64-arm64-fail",
+      "source_package_version": "4.2-1ubuntu2",
+      "component_name": "universe",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~test-user"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/6": {
+      "source_package_name": "arm64-riscv64-fail",
+      "source_package_version": "2.7-4",
+      "component_name": "main",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~server-team"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/7": {
+      "source_package_name": "depwait-amd64-only",
+      "source_package_version": "1.8-1",
+      "component_name": "universe",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~test-user"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/8": {
+      "source_package_name": "cancelled-arm64-only",
+      "source_package_version": "0.9-5ubuntu1",
+      "component_name": "restricted",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~security-team"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/9": {
+      "source_package_name": "mixed-failures",
+      "source_package_version": "5.0-1",
+      "component_name": "main",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~foundations-team"
+    },
+    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/10": {
+      "source_package_name": "regression-amd64",
+      "source_package_version": "2.0-1ubuntu1",
+      "component_name": "universe",
+      "pocket": "Release",
+      "package_creator_link": "https://api.launchpad.net/devel/~test-user"
+    }
+  },
+  "packagesets": {
+    "server": [
+      "only-amd64-fails",
+      "arm64-riscv64-fail",
+      "mixed-failures"
+    ],
+    "desktop": [
+      "only-arm64-fails"
+    ],
+    "foundations": [
+      "regression-amd64"
+    ]
+  },
+  "teams": {
+    "server-team": [
+      "only-amd64-fails",
+      "arm64-riscv64-fail"
+    ],
+    "foundations-team": [
+      "only-arm64-fails",
+      "mixed-failures"
+    ],
+    "security-team": [
+      "cancelled-arm64-only"
+    ]
+  },
+  "bugs": {
+    "fails-everywhere": [
+      {
+        "id": 100001,
+        "title": "fails-everywhere: broken build system",
+        "tags": [
+          "ftbfs"
+        ]
+      }
+    ],
+    "only-amd64-fails": [
+      {
+        "id": 100002,
+        "title": "only-amd64-fails: x86-specific inline assembly",
+        "tags": [
+          "ftbfs",
+          "amd64"
+        ]
+      }
+    ],
+    "only-arm64-fails": [
+      {
+        "id": 100003,
+        "title": "only-arm64-fails: ARM NEON intrinsics issue",
+        "tags": [
+          "ftbfs",
+          "arm64",
+          "porting"
+        ]
+      }
+    ],
+    "only-riscv64-fails": [
+      {
+        "id": 100004,
+        "title": "only-riscv64-fails: RISC-V atomic operations",
+        "tags": [
+          "ftbfs",
+          "riscv64",
+          "porting"
+        ]
+      }
+    ],
+    "amd64-arm64-fail": [
+      {
+        "id": 100005,
+        "title": "amd64-arm64-fail: endianness issues",
+        "tags": [
+          "ftbfs",
+          "porting"
+        ]
+      }
+    ],
+    "mixed-failures": [
+      {
+        "id": 100006,
+        "title": "mixed-failures: complex dependency chain",
+        "tags": [
+          "ftbfs",
+          "depwait"
+        ]
+      }
+    ],
+    "regression-amd64": [
+      {
+        "id": 100007,
+        "title": "regression-amd64: worked in previous release",
+        "tags": [
+          "ftbfs",
+          "regression"
+        ]
+      }
+    ]
+  },
+  "reference_builds": {
+    "fails-everywhere": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T08:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T08:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T08:00:00+00:00"
+      }
+    },
+    "only-amd64-fails": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-15T10:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-15T10:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-15T10:00:00+00:00"
+      }
+    },
+    "only-arm64-fails": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-20T12:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-20T12:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-20T12:00:00+00:00"
+      }
+    },
+    "only-riscv64-fails": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-10T10:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-10T10:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-10T10:00:00+00:00"
+      }
+    },
+    "amd64-arm64-fail": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-25T09:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-25T09:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-25T09:00:00+00:00"
+      }
+    },
+    "arm64-riscv64-fail": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-28T10:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-28T10:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-28T10:00:00+00:00"
+      }
+    },
+    "depwait-amd64-only": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T08:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T08:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T08:00:00+00:00"
+      }
+    },
+    "cancelled-arm64-only": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T14:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T14:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-01T14:00:00+00:00"
+      }
+    },
+    "mixed-failures": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-30T11:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-30T11:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-04-30T11:00:00+00:00"
+      }
+    },
+    "regression-amd64": {
+      "amd64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-03-01T08:00:00+00:00"
+      },
+      "arm64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-03-01T08:00:00+00:00"
+      },
+      "riscv64": {
+        "buildstate": "Successfully built",
+        "datebuilt": "2026-03-01T08:00:00+00:00"
+      }
+    }
+  }
+}

@@ -72,6 +72,20 @@ uv run poe format
 uv run poe clean
 ```
 
+### Testing
+
+Run the Python test suite:
+```bash
+uv run pytest tests/ -v
+```
+
+There are also frontend tests available. The testing environment uses the `bun` JavaScript runtime to directly execute the code that would be executed in a browser. To run frontend tests:
+```bash
+cd tests/frontend
+bun install  # First time only
+bun run ci   # Full CI pipeline: typecheck + lint + format + tests
+```
+
 ### Dependencies
 
 Add a runtime dependency:
