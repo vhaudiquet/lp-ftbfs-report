@@ -4,8 +4,8 @@
   "description": "Frontend tests for lp-ftbfs-report filters (uses Bun)",
   "type": "module",
   "scripts": {
-    "pretest": "cd ../.. && uv run lp-ftbfs-report --dummy-data tests/fixtures/comprehensive.json oracular amd64 arm64 riscv64",
-    "test": "bun test",
+    "generate-html": "cd ../.. && uv run lp-ftbfs-report --dummy-data tests/fixtures/comprehensive.json oracular amd64 arm64 riscv64",
+    "test": "bun run generate-html && bun test",
     "test:watch": "bun test --watch",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
@@ -13,7 +13,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check": "biome check --write .",
-    "ci": "bun run typecheck && bun run format:check && bun run lint && bun test"
+    "ci": "bun run typecheck && bun run format:check && bun run lint && bun run test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
