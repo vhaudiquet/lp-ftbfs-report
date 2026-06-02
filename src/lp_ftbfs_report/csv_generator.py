@@ -24,10 +24,10 @@ def generate_csvfile(
     Args:
         name: Output file name prefix
         components: Dictionary of packages per component
-        output_dir: Output directory (defaults to same directory as this module)
+        output_dir: Output directory (defaults to the current working directory)
     """
     if output_dir is None:
-        output_dir = os.path.dirname(__file__)
+        output_dir = os.getcwd()
 
     output_path = os.path.join(output_dir, f"{name}.csv")
 

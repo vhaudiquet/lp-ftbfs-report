@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from optparse import OptionParser
 from typing import Any
@@ -251,6 +252,12 @@ def main() -> None:
         dest="dummy_fixture",
         help="Use dummy data from JSON fixture file for testing.",
     )
+    parser.add_option(
+        "--output-dir",
+        dest="output_dir",
+        default=None,
+        help="Directory where generated HTML and CSV reports are written (defaults to the package directory).",
+    )
     (options, args) = parser.parse_args()
 
     # Determine mode based on flags
@@ -442,9 +449,29 @@ def main() -> None:
         release_only=options.release_only,
         ref_series=options.ref_series,
         generated=generated_info,
+        output_dir=options.output_dir,
     )
     print("Generating CSV file...")
-    generate_csvfile(options.name, components)
+    generate_csvfile(options.name, components, output_dir=options.output_dir)
+
+    # Resolve the actual output directory used (mirrors the default in the generators)
+    out_dir = os.path.abspath(options.output_dir if options.output_dir is not None else os.getcwd())
+    html_path = os.path.join(out_dir, f"{options.name}.html")
+    csv_path = os.path.join(out_dir, f"{options.name}.csv")
+
+    GREEN = "\033[32m"
+    CYAN = "\033[36m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+    CHECK = "\u2714"
+
+    print()
+    print(f"{BOLD}{GREEN}{CHECK}  Report generation complete!{RESET}")
+    print(f"   {CYAN}HTML{RESET}   {html_path}")
+    print(f"   {CYAN}CSV{RESET}    {csv_path}")
+    for asset in sorted(os.listdir(os.path.join(os.path.dirname(__file__), "html"))):
+        print(f"   {CYAN}ASSET{RESET}  {os.path.join(out_dir, asset)}")
+    print()
 
 
 if __name__ == "__main__":

@@ -29,10 +29,12 @@ htmlcov/
 # Linting
 .ruff_cache/
 
-# Project specific
-test-rebuild*.csv
-test-rebuild*.html
-test-rebuild*.json
+# Generated into root directory
+/*.css
+/*.js
+/*.json
+/*.html
+/*.csv
 
 # Frontend tests (Bun)
 tests/frontend/node_modules/

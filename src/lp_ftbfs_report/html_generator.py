@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import time
 from operator import methodcaller
 from typing import Any
@@ -37,6 +38,7 @@ def generate_page(
     release_only: bool = False,
     ref_series: Any = None,
     generated: str = "",
+    output_dir: str | None = None,
 ) -> None:
     """Generate an HTML page with FTBFS report.
 
@@ -56,6 +58,7 @@ def generate_page(
         release_only: Whether to only include release pocket packages
         ref_series: Reference series for comparison
         generated: Generation timestamp string
+        output_dir: Output directory (defaults to the current working directory)
     """
     if arch_list is None:
         arch_list = []
@@ -158,8 +161,19 @@ def generate_page(
     tmpl = env.get_template(template)
     stream = tmpl.render(**data)
 
+    if output_dir is None:
+        output_dir = os.getcwd()
+
+    # Copy static assets to the output directory so the HTML page works standalone.
+    _html_dir = os.path.join(os.path.dirname(__file__), "html")
+    for asset in os.listdir(_html_dir):
+        src = os.path.join(_html_dir, asset)
+        dst = os.path.join(output_dir, asset)
+        if os.path.isfile(src) and os.path.abspath(src) != os.path.abspath(dst):
+            shutil.copy2(src, dst)
+
     fn = f"{name}.html"
-    output_path = os.path.join(os.path.dirname(__file__), fn)
+    output_path = os.path.join(output_dir, fn)
     with open(f"{output_path}.new", "wb") as out:
         out.write(stream.encode("utf-8"))
     os.rename(f"{output_path}.new", output_path)

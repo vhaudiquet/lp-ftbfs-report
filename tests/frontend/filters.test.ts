@@ -29,7 +29,7 @@ interface TestContext {
  * Load and parse the test HTML file
  */
 function loadTestHTML(): TestContext {
-  const htmlPath = path.join(__dirname, '..', '..', 'src', 'lp_ftbfs_report', 'test-archive-oracular.html');
+  const htmlPath = path.join(__dirname, '..', '..', 'test-archive-oracular.html');
   const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
 
   const window = new Window();
@@ -61,7 +61,7 @@ function loadTestHTML(): TestContext {
 async function waitForDOM(window: Window, document: TestDocument): Promise<void> {
   return new Promise((resolve) => {
     // Load and execute the filters script
-    const filtersPath = path.join(__dirname, '..', '..', 'src', 'lp_ftbfs_report', 'filters.js');
+    const filtersPath = path.join(__dirname, '..', '..', 'src', 'lp_ftbfs_report', 'html', 'filters.js');
     const filtersCode = fs.readFileSync(filtersPath, 'utf-8');
 
     // Execute the filters code using Function constructor (works in Happy DOM)
