@@ -1,6 +1,5 @@
 """Tests for DummyFetcher."""
 
-from datetime import datetime
 
 import pytest
 
@@ -116,21 +115,6 @@ def test_search_bugs(sample_fixture_path):
     # Package with no bugs
     tasks = fetcher.search_bugs("nonexistent-pkg", "ftbfs")
     assert len(tasks) == 0
-
-
-def test_last_published_filter(sample_fixture_path):
-    """Test filtering by last_published timestamp."""
-    fetcher = DummyFetcher(sample_fixture_path)
-
-    # Filter with a date that should exclude all builds
-    last_published = datetime(2026, 5, 1)
-    builds = list(fetcher.get_build_records("Failed to build", ["amd64"], last_published))
-    assert len(builds) == 0
-
-    # Filter with a date that should include builds
-    last_published = datetime(2026, 3, 1)
-    builds = list(fetcher.get_build_records("Failed to build", ["amd64"], last_published))
-    assert len(builds) == 2
 
 
 def test_invalid_fixture_path():

@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime
 from typing import Any
 
 from lp_ftbfs_report.fetchers.base import (
@@ -98,25 +97,14 @@ class PPAFetcher(BaseFetcher):
         self,
         state: str,
         arch_list: list[str],
-        last_published: datetime | None = None,
     ) -> Iterator[BuildRecord]:
         """Get build records matching the given state and architectures."""
         print(f"Processing PPA '{state}'")
-        if last_published:
-            last_published = last_published.replace(tzinfo=None)
 
         # PPAs use archive.getBuildRecords
         buildlist = self.ppa.getBuildRecords(build_state=state)
 
         for build in buildlist:
-            if (
-                last_published is not None
-                and build.datebuilt is not None
-                and last_published > build.datebuilt.replace(tzinfo=None)
-            ):
-                # Past the last known published build record
-                break
-
             if not build.current_source_publication_link:
                 # Build log for an older version
                 continue

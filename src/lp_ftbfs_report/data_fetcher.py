@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
 from typing import Any
 
 from lp_ftbfs_report.fetchers import BaseFetcher
@@ -21,7 +19,6 @@ from lp_ftbfs_report.models import SPPH, SourcePackage
 
 def fetch_pkg_list(
     state: str,
-    last_published: datetime | None,
     launchpad: Any,
     ubuntu: Any,
     find_tagged_bugs: str | None,
@@ -37,12 +34,11 @@ def fetch_pkg_list(
     ref_series: Any = None,
     api_version: str = "devel",
     fetcher: BaseFetcher | None = None,
-) -> datetime | None:
+) -> None:
     """Fetch package list with build failures.
 
     Args:
         state: Build state to filter by
-        last_published: Last published timestamp for incremental updates
         launchpad: Launchpad instance (for model compatibility)
         ubuntu: Ubuntu distribution (for model compatibility)
         find_tagged_bugs: Tag to search for bugs
@@ -58,19 +54,12 @@ def fetch_pkg_list(
         ref_series: Reference series for comparison
         api_version: API version string
         fetcher: Data fetcher instance
-
-    Returns:
-        The last published timestamp of processed builds
     """
     if fetcher is None:
         raise ValueError("fetcher must be provided")
 
-    cur_last_published: datetime | None = None
-
     # Get build records from fetcher
-    for build_record in fetcher.get_build_records(state, arch_list, last_published):
-        cur_last_published = build_record.datebuilt
-
+    for build_record in fetcher.get_build_records(state, arch_list):
         # Handle updates archive logic
         if is_updates_archive:
             if state == "Successfully built":
@@ -147,52 +136,3 @@ def fetch_pkg_list(
             print("    never built before")
 
         spph.addBuildLog(build_record, never_built, no_regression, api_version)
-
-    return cur_last_published
-
-
-def load_timestamps(name: str) -> dict[str, datetime | None]:
-    """Load the saved timestamps about the last still published FTBFS build record.
-
-    Args:
-        name: The file name prefix for the timestamp file
-
-    Returns:
-        Dictionary mapping build states to timestamps
-    """
-    try:
-        with open(f"{name}.json") as timestamp_file:
-            tmp = json.load(timestamp_file)
-        timestamps: dict[str, datetime | None] = {}
-        for state, timestamp in list(tmp.items()):
-            try:
-                timestamps[state] = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
-            except TypeError:
-                timestamps[state] = None
-        return timestamps
-    except OSError:
-        return {
-            "Successfully built": None,
-            "Failed to build": None,
-            "Dependency wait": None,
-            "Chroot problem": None,
-            "Failed to upload": None,
-            "Cancelled build": None,
-        }
-
-
-def save_timestamps(name: str, timestamps: dict[str, datetime | None]) -> None:
-    """Save the timestamps of the last still published FTBFS build record into a JSON file.
-
-    Args:
-        name: The file name prefix for the timestamp file
-        timestamps: Dictionary mapping build states to timestamps
-    """
-    with open(f"{name}.json", "w") as timestamp_file:
-        tmp: dict[str, str | None] = {}
-        for state, timestamp in list(timestamps.items()):
-            if timestamp is not None:
-                tmp[state] = timestamp.strftime("%s")
-            else:
-                tmp[state] = None
-        json.dump(tmp, timestamp_file)

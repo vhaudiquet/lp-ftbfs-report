@@ -33,7 +33,7 @@ from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
 
 from lp_ftbfs_report.csv_generator import generate_csvfile
-from lp_ftbfs_report.data_fetcher import fetch_pkg_list, load_timestamps, save_timestamps
+from lp_ftbfs_report.data_fetcher import fetch_pkg_list
 from lp_ftbfs_report.fetchers import DummyFetcher, PPAFetcher, TestRebuildFetcher, parse_ppa_spec
 from lp_ftbfs_report.html_generator import generate_page
 from lp_ftbfs_report.models import SPPH, MainArchiveBuilds, PersonTeam, SourcePackage
@@ -321,8 +321,6 @@ def main() -> None:
     SourcePackage.clear()
     SPPH.clear()
     MainArchiveBuilds.clear()
-    last_published = load_timestamps(options.name)
-
     # list of SourcePackages for each component
     components: dict[str, list[SourcePackage]] = {
         "main": [],
@@ -359,14 +357,6 @@ def main() -> None:
 
     if updates_archive:
         print("XXX: processing updates archive ...")
-        last_updates_published: dict[str, Any] = {
-            "Successfully built": None,
-            "Failed to build": None,
-            "Dependency wait": None,
-            "Chroot problem": None,
-            "Failed to upload": None,
-            "Cancelled build": None,
-        }
         for state in (
             "Successfully built",
             "Failed to build",
@@ -375,9 +365,8 @@ def main() -> None:
             "Failed to upload",
             "Cancelled build",
         ):
-            last_updates_published[state] = fetch_pkg_list(
+            fetch_pkg_list(
                 state=state,
-                last_published=last_updates_published[state],
                 launchpad=launchpad,
                 ubuntu=ubuntu,
                 find_tagged_bugs=FIND_TAGGED_BUGS,
@@ -403,9 +392,8 @@ def main() -> None:
         "Failed to upload",
         "Cancelled build",
     ):
-        last_published[state] = fetch_pkg_list(
+        fetch_pkg_list(
             state=state,
-            last_published=last_published[state],
             launchpad=launchpad,
             ubuntu=ubuntu,
             find_tagged_bugs=FIND_TAGGED_BUGS,
@@ -422,8 +410,6 @@ def main() -> None:
             api_version=API_VERSION,
             fetcher=fetcher,
         )
-
-    save_timestamps(options.name, last_published)
 
     if options.notice_file:
         with open(options.notice_file) as f:

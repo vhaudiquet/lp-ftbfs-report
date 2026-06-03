@@ -82,7 +82,6 @@ class DummyFetcher(BaseFetcher):
         self,
         state: str,
         arch_list: list[str],
-        last_published: datetime | None = None,
     ) -> Iterator[BuildRecord]:
         """Get build records matching the given state and architectures."""
         print(f"Processing dummy data '{state}'")
@@ -100,15 +99,6 @@ class DummyFetcher(BaseFetcher):
             datebuilt = None
             if build_data.get("datebuilt"):
                 datebuilt = datetime.fromisoformat(build_data["datebuilt"].replace("+00:00", ""))
-
-            # Filter by last_published timestamp
-            if last_published and datebuilt:
-                # Ensure both timestamps are timezone-naive for comparison
-                last_pub_naive = (
-                    last_published.replace(tzinfo=None) if last_published.tzinfo else last_published
-                )
-                if last_pub_naive > datebuilt:
-                    continue
 
             print(f"  {datebuilt} {build_data['source_package_name']} {build_data['arch_tag']}")
 

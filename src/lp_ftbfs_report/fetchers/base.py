@@ -82,14 +82,12 @@ class BaseFetcher(ABC):
         self,
         state: str,
         arch_list: list[str],
-        last_published: datetime | None = None,
     ) -> Iterator[BuildRecord]:
         """Get build records matching the given state and architectures.
 
         Args:
             state: Build state to filter by (e.g., "Failed to build")
             arch_list: List of architectures to include
-            last_published: Optional timestamp to only get builds after this time
 
         Yields:
             BuildRecord objects
