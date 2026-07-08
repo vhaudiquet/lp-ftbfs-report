@@ -1,0 +1,39 @@
+name: lp-ftbfs-report
+base: core26
+version: 1.0.0
+title: LP FTBFS Report
+summary: Launchpad FTBFS (Failed To Build From Source) report generator
+description: |
+  lp-ftbfs-report generates reports about packages that failed to build
+  from source on Launchpad. It queries the Launchpad API for the primary
+  Ubuntu archive, PPAs or archive test rebuilds and produces HTML and CSV
+  output highlighting build failures and regressions.
+
+grade: stable
+confinement: strict
+license: GPL-2.0-or-later
+contact: geser@ubuntu.com
+source-code: https://github.com/canonical/lp-ftbfs-report
+
+apps:
+  lp-ftbfs-report:
+    command: bin/lp-ftbfs-report
+    environment:
+      # Ensure the bundled venv interpreter ($SNAP/bin/python3) is found
+      # before the staged $SNAP/usr/bin/python3, so the venv site-packages
+      # (where lp_ftbfs_report and its deps live) are picked up correctly.
+      PATH: $SNAP/bin:$SNAP/usr/bin:$PATH
+    plugs:
+      - network
+      - home
+
+parts:
+  lp-ftbfs-report:
+    plugin: python
+    source: .
+    source-type: local
+    build-packages:
+      - python3-dev
+    stage-packages:
+      - python3
+      - python3-venv

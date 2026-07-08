@@ -36,6 +36,13 @@ htmlcov/
 /*.html
 /*.csv
 
+# Snap build artifacts
+*.snap
+parts/
+stage/
+prime/
+snap/.snapcraft/
+
 # Frontend tests (Bun)
 tests/frontend/node_modules/
 tests/frontend/bun.lockb
