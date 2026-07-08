@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -32,6 +32,37 @@ class BuildRecord:
     upload_log_url: str | None
     dependencies: str | None  # For dependency wait
     self_link: str  # For generating web URLs
+
+
+class BuildRecordSet:
+    """An iterable, countable set of :class:`BuildRecord` objects.
+
+    It wraps a factory that produces a fresh iterator over the build records
+    and exposes a total count so callers can render progress without first
+    exhausting the iterator.
+
+    The factory receives a tick callback (``on_item``) that is invoked once
+    per record pulled from the underlying source collection. This lets the
+    progress tracker advance even for records that are filtered out (e.g. a
+    build for an architecture that was not requested) and therefore not
+    yielded. Callers that only need iteration (such as tests) can leave
+    :attr:`on_item` unset.
+    """
+
+    def __init__(
+        self,
+        factory: Callable[[Callable[[str | None], None] | None], Iterator[BuildRecord]],
+        total: int | None = None,
+    ) -> None:
+        self._factory = factory
+        self.total = total
+        self.on_item: Callable[[str | None], None] | None = None
+
+    def __iter__(self) -> Iterator[BuildRecord]:
+        return self._factory(self.on_item)
+
+    def __len__(self) -> int:
+        return self.total if self.total is not None else 0
 
 
 @dataclass
@@ -82,15 +113,15 @@ class BaseFetcher(ABC):
         self,
         state: str,
         arch_list: list[str],
-    ) -> Iterator[BuildRecord]:
+    ) -> BuildRecordSet:
         """Get build records matching the given state and architectures.
 
         Args:
             state: Build state to filter by (e.g., "Failed to build")
             arch_list: List of architectures to include
 
-        Yields:
-            BuildRecord objects
+        Returns:
+            A :class:`BuildRecordSet` (iterable of :class:`BuildRecord`).
         """
         pass
 

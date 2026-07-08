@@ -37,6 +37,8 @@ uv run lp-ftbfs-report --dummy-data tests/fixtures/sample.json oracular amd64
 - `--release-only`: Only include sources published in the release pocket
 - `--updates-archive`: Name of an updates archive
 - `--reference-series`: Series to look for successful builds
+- `--output-dir`: Directory where generated HTML and CSV reports are written (defaults to the package directory)
+- `-v, --verbose`: Print per-build detail (never-built status, reference-build lookups, etc.). By default only a compact progress line per build state is shown on stderr.
 
 #### Data source
 

@@ -11,10 +11,12 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 from lp_ftbfs_report.fetchers import BaseFetcher
 from lp_ftbfs_report.models import SPPH, SourcePackage
+from lp_ftbfs_report.progress import Progress
 
 
 def fetch_pkg_list(
@@ -34,6 +36,9 @@ def fetch_pkg_list(
     ref_series: Any = None,
     api_version: str = "devel",
     fetcher: BaseFetcher | None = None,
+    verbose: bool = False,
+    state_index: int | None = None,
+    state_count: int | None = None,
 ) -> None:
     """Fetch package list with build failures.
 
@@ -54,12 +59,28 @@ def fetch_pkg_list(
         ref_series: Reference series for comparison
         api_version: API version string
         fetcher: Data fetcher instance
+        verbose: When True, emit per-build detail to stderr.
+        state_index: 1-based index of this state within its phase.
+        state_count: Number of states in this phase.
     """
     if fetcher is None:
         raise ValueError("fetcher must be provided")
 
-    # Get build records from fetcher
-    for build_record in fetcher.get_build_records(state, arch_list):
+    records = fetcher.get_build_records(state, arch_list)
+    progress = Progress(
+        records.total,
+        state,
+        verbose=verbose,
+        state_index=state_index,
+        state_count=state_count,
+    )
+    # Inject the tick callback so the fetcher advances the running counter
+    # for every record pulled from the source collection, including those it
+    # filters out (arch mismatch / superseded publications) and therefore
+    # does not yield.
+    records.on_item = progress.tick
+
+    for build_record in records:
         # Handle updates archive logic
         if is_updates_archive:
             if state == "Successfully built":
@@ -68,6 +89,7 @@ def fetch_pkg_list(
                     fetcher.record_update_build(  # type: ignore[call-non-callable]
                         build_record.source_package_name, build_record.arch_tag, build_record
                     )
+                progress.mark("skipped")
                 continue
         else:
             # Check if build succeeded in updates archive
@@ -76,10 +98,13 @@ def fetch_pkg_list(
             ) and fetcher.check_update_archive_success(  # type: ignore[call-non-callable]
                 build_record.source_package_name, build_record.arch_tag
             ):
-                print(
-                    f"    Skipping {build_record.source_package_name}, "
-                    "build succeeded in updates-archive"
-                )
+                if verbose:
+                    print(
+                        f"    Skipping {build_record.source_package_name}, "
+                        "build succeeded in updates-archive",
+                        file=sys.stderr,
+                    )
+                progress.mark("skipped")
                 continue
 
         # Load SPPH and create SourcePackage
@@ -103,8 +128,8 @@ def fetch_pkg_list(
                 spph._lp.source_package_name, spph._lp.source_package_version, spph.pocket
             )
 
-        if not spph.current:
-            print("    superseded")
+        if not spph.current and verbose:
+            print("    superseded", file=sys.stderr)
 
         # Check for regressions
         no_regression = False
@@ -116,7 +141,9 @@ def fetch_pkg_list(
             )
             if main_build_state and main_build_state != "Successfully built":
                 if regressions_only:
-                    print(f"  Skipping {build_record.source_package_name}")
+                    if verbose:
+                        print(f"  Skipping {build_record.source_package_name}", file=sys.stderr)
+                    progress.mark("skipped")
                     continue
                 else:
                     no_regression = True
@@ -133,6 +160,13 @@ def fetch_pkg_list(
                 never_built = False
 
         if never_built:
-            print("    never built before")
+            if verbose:
+                print("    never built before", file=sys.stderr)
+            progress.mark("kept")
+            progress.mark("never-built")
+        else:
+            progress.mark("kept")
 
         spph.addBuildLog(build_record, never_built, no_regression, api_version)
+
+    progress.finish()

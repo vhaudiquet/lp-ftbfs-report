@@ -11,13 +11,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import sys
+from collections.abc import Callable, Iterator
 from typing import Any
 
 from lp_ftbfs_report.fetchers.base import (
     ArchiveInfo,
     BaseFetcher,
     BuildRecord,
+    BuildRecordSet,
     SeriesInfo,
 )
 
@@ -40,6 +42,7 @@ class PPAFetcher(BaseFetcher):
         ppa_name: str,
         series_name: str,
         api_version: str = "devel",
+        verbose: bool = False,
     ):
         """Initialize PPA fetcher.
 
@@ -57,6 +60,7 @@ class PPAFetcher(BaseFetcher):
         self.ppa_name = ppa_name
         self.series_name = series_name
         self.api_version = api_version
+        self.verbose = verbose
 
         # Get PPA owner object
         self.owner = launchpad.people[ppa_owner]
@@ -97,37 +101,60 @@ class PPAFetcher(BaseFetcher):
         self,
         state: str,
         arch_list: list[str],
-    ) -> Iterator[BuildRecord]:
+    ) -> BuildRecordSet:
         """Get build records matching the given state and architectures."""
-        print(f"Processing PPA '{state}'")
-
         # PPAs use archive.getBuildRecords
         buildlist = self.ppa.getBuildRecords(build_state=state)
 
-        for build in buildlist:
-            if not build.current_source_publication_link:
-                # Build log for an older version
-                continue
+        try:
+            total = len(buildlist)
+        except Exception:
+            total = None
 
-            if build.arch_tag not in arch_list:
-                print(f"  Skipping {build.title}")
-                continue
+        arch_set = set(arch_list)
+        verbose = self.verbose
 
-            print(f"  {build.datebuilt} {build.title}")
+        def factory(
+            on_item: Callable[[str | None], None] | None,
+        ) -> Iterator[BuildRecord]:
+            for build in buildlist:
+                if not build.current_source_publication_link:
+                    # Build log for an older version
+                    if on_item:
+                        on_item("filtered")
+                    continue
 
-            # Convert to BuildRecord
-            yield BuildRecord(
-                source_package_name=build.source_package_name,
-                source_package_version=getattr(build, "source_package_version", ""),
-                arch_tag=build.arch_tag,
-                buildstate=build.buildstate,
-                datebuilt=build.datebuilt,
-                current_source_publication_link=build.current_source_publication_link,
-                build_log_url=build.build_log_url if hasattr(build, "build_log_url") else None,
-                upload_log_url=(build.upload_log_url if hasattr(build, "upload_log_url") else None),
-                dependencies=build.dependencies if hasattr(build, "dependencies") else None,
-                self_link=build.self_link,
-            )
+                if build.arch_tag not in arch_set:
+                    if verbose:
+                        print(f"  Skipping {build.title}", file=sys.stderr)
+                    if on_item:
+                        on_item("filtered")
+                    continue
+
+                if verbose:
+                    print(f"  {build.datebuilt} {build.title}", file=sys.stderr)
+
+                if on_item:
+                    on_item(None)
+
+                yield BuildRecord(
+                    source_package_name=build.source_package_name,
+                    source_package_version=getattr(build, "source_package_version", ""),
+                    arch_tag=build.arch_tag,
+                    buildstate=build.buildstate,
+                    datebuilt=build.datebuilt,
+                    current_source_publication_link=build.current_source_publication_link,
+                    build_log_url=(
+                        build.build_log_url if hasattr(build, "build_log_url") else None
+                    ),
+                    upload_log_url=(
+                        build.upload_log_url if hasattr(build, "upload_log_url") else None
+                    ),
+                    dependencies=build.dependencies if hasattr(build, "dependencies") else None,
+                    self_link=build.self_link,
+                )
+
+        return BuildRecordSet(factory, total=total)
 
     def check_current_publication(
         self,
@@ -158,7 +185,8 @@ class PPAFetcher(BaseFetcher):
 
         For PPAs, we look for any successful build of this package in this series.
         """
-        print(f"    Find reference build in PPA: {source_name} / {arch}")
+        if self.verbose:
+            print(f"    Find reference build in PPA: {source_name} / {arch}", file=sys.stderr)
 
         # Get published sources for this package
         ref_sources = self.ppa.getPublishedSources(
@@ -169,13 +197,18 @@ class PPAFetcher(BaseFetcher):
         )
 
         for rs in ref_sources:
-            print(f"      v={rs.source_package_version}, {rs.pocket}")
+            if self.verbose:
+                print(f"      v={rs.source_package_version}, {rs.pocket}", file=sys.stderr)
 
             # Get builds for this source
             builds = rs.getBuilds()
             for build in builds:
                 if build.arch_tag == arch and build.buildstate == "Successfully built":
-                    print(f"        found: {build.source_package_name} {build.arch_tag}")
+                    if self.verbose:
+                        print(
+                            f"        found: {build.source_package_name} {build.arch_tag}",
+                            file=sys.stderr,
+                        )
                     return BuildRecord(
                         source_package_name=build.source_package_name,
                         source_package_version=getattr(build, "source_package_version", ""),
@@ -236,7 +269,7 @@ class PPAFetcher(BaseFetcher):
             ts = self.ubuntu.getSourcePackage(name=source_name).searchTasks(tags=tag)
             return [t.bug for t in ts]
         except Exception as e:
-            print(f"Warning: Could not search bugs for {source_name}: {e}")
+            print(f"Warning: Could not search bugs for {source_name}: {e}", file=sys.stderr)
             return []
 
 

@@ -11,7 +11,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import sys
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import requests
@@ -20,6 +21,7 @@ from lp_ftbfs_report.fetchers.base import (
     ArchiveInfo,
     BaseFetcher,
     BuildRecord,
+    BuildRecordSet,
     SeriesInfo,
 )
 
@@ -45,6 +47,7 @@ class TestRebuildFetcher(BaseFetcher):
         release_only: bool = False,
         regressions_only: bool = False,
         api_version: str = "devel",
+        verbose: bool = False,
     ):
         """Initialize test rebuild fetcher.
 
@@ -72,6 +75,7 @@ class TestRebuildFetcher(BaseFetcher):
         self.release_only = release_only
         self.regressions_only = regressions_only
         self.api_version = api_version
+        self.verbose = verbose
 
         # Caches
         self.update_builds: dict[tuple[str, str], Any] = {}
@@ -99,10 +103,8 @@ class TestRebuildFetcher(BaseFetcher):
         self,
         state: str,
         arch_list: list[str],
-    ) -> Iterator[BuildRecord]:
+    ) -> BuildRecordSet:
         """Get build records matching the given state and architectures."""
-        print(f"Processing '{state}'")
-
         # XXX wgrant 2009-09-19: This is an awful hack. We should really
         # just let IArchive.getBuildRecords take a series argument.
         if self.archive.name == "primary":
@@ -110,30 +112,55 @@ class TestRebuildFetcher(BaseFetcher):
         else:
             buildlist = self.archive.getBuildRecords(build_state=state)
 
-        for build in buildlist:
-            if not build.current_source_publication_link:
-                # Build log for an older version
-                continue
+        try:
+            total = len(buildlist)
+        except Exception:
+            total = None
 
-            if build.arch_tag not in arch_list:
-                print(f"  Skipping {build.title}")
-                continue
+        arch_set = set(arch_list)
+        verbose = self.verbose
 
-            print(f"  {build.datebuilt} {build.title}")
+        def factory(
+            on_item: Callable[[str | None], None] | None,
+        ) -> Iterator[BuildRecord]:
+            for build in buildlist:
+                if not build.current_source_publication_link:
+                    # Build log for an older version
+                    if on_item:
+                        on_item("filtered")
+                    continue
 
-            # Convert to BuildRecord
-            yield BuildRecord(
-                source_package_name=build.source_package_name,
-                source_package_version=getattr(build, "source_package_version", ""),
-                arch_tag=build.arch_tag,
-                buildstate=build.buildstate,
-                datebuilt=build.datebuilt,
-                current_source_publication_link=build.current_source_publication_link,
-                build_log_url=build.build_log_url if hasattr(build, "build_log_url") else None,
-                upload_log_url=(build.upload_log_url if hasattr(build, "upload_log_url") else None),
-                dependencies=build.dependencies if hasattr(build, "dependencies") else None,
-                self_link=build.self_link,
-            )
+                if build.arch_tag not in arch_set:
+                    if verbose:
+                        print(f"  Skipping {build.title}", file=sys.stderr)
+                    if on_item:
+                        on_item("filtered")
+                    continue
+
+                if verbose:
+                    print(f"  {build.datebuilt} {build.title}", file=sys.stderr)
+
+                if on_item:
+                    on_item(None)
+
+                yield BuildRecord(
+                    source_package_name=build.source_package_name,
+                    source_package_version=getattr(build, "source_package_version", ""),
+                    arch_tag=build.arch_tag,
+                    buildstate=build.buildstate,
+                    datebuilt=build.datebuilt,
+                    current_source_publication_link=build.current_source_publication_link,
+                    build_log_url=(
+                        build.build_log_url if hasattr(build, "build_log_url") else None
+                    ),
+                    upload_log_url=(
+                        build.upload_log_url if hasattr(build, "upload_log_url") else None
+                    ),
+                    dependencies=build.dependencies if hasattr(build, "dependencies") else None,
+                    self_link=build.self_link,
+                )
+
+        return BuildRecordSet(factory, total=total)
 
     def check_current_publication(
         self,
@@ -189,13 +216,18 @@ class TestRebuildFetcher(BaseFetcher):
         if not self.ref_series:
             return None
 
-        print(f"    Find reference build: {source_name} / {arch} / {pockets} / {self.series.name}")
+        if self.verbose:
+            print(
+                f"    Find reference build: {source_name} / {arch} / {pockets} / {self.series.name}",
+                file=sys.stderr,
+            )
 
         # Check cache first
         for pocket in pockets:
             br = self.reference_builds.get((source_name, self.series.name, pocket, arch))
             if br:
-                print(f"        cache: {br.source_package_name} {br.arch_tag}")
+                if self.verbose:
+                    print(f"        cache: {br.source_package_name} {br.arch_tag}", file=sys.stderr)
                 return self._build_to_record(br)
 
         # Determine which archive to search
@@ -222,7 +254,8 @@ class TestRebuildFetcher(BaseFetcher):
         for rs in ref_sources:
             if rs.pocket not in pockets:
                 continue
-            print(f"      v={rs.source_package_version}, {rs.pocket}")
+            if self.verbose:
+                print(f"      v={rs.source_package_version}, {rs.pocket}", file=sys.stderr)
 
             # Get binaries to find successful builds
             binaries = rs.getPublishedBinaries()
@@ -249,7 +282,10 @@ class TestRebuildFetcher(BaseFetcher):
             break
 
         if found:
-            print(f"        found: {found.source_package_name} {found.arch_tag}")
+            if self.verbose:
+                print(
+                    f"        found: {found.source_package_name} {found.arch_tag}", file=sys.stderr
+                )
             return self._build_to_record(found)
         return None
 
@@ -273,7 +309,7 @@ class TestRebuildFetcher(BaseFetcher):
                 response.raise_for_status()
                 self._teams = response.json()
             except Exception as e:
-                print(f"Warning: Could not fetch team mappings: {e}")
+                print(f"Warning: Could not fetch team mappings: {e}", file=sys.stderr)
                 self._teams = {}
         return self._teams
 

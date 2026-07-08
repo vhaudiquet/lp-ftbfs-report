@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+import sys
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ from lp_ftbfs_report.fetchers.base import (
     ArchiveInfo,
     BaseFetcher,
     BuildRecord,
+    BuildRecordSet,
     SeriesInfo,
 )
 
@@ -33,15 +35,17 @@ class DummyFetcher(BaseFetcher):
     a JSON fixture file.
     """
 
-    def __init__(self, fixture_path: str | Path, api_version: str = "devel"):
+    def __init__(self, fixture_path: str | Path, api_version: str = "devel", verbose: bool = False):
         """Initialize dummy fetcher.
 
         Args:
             fixture_path: Path to JSON fixture file
             api_version: API version string (for compatibility)
+            verbose: When True, emit per-build detail to stderr.
         """
         self.fixture_path = Path(fixture_path)
         self.api_version = api_version
+        self.verbose = verbose
 
         # Load fixture data
         with open(self.fixture_path) as f:
@@ -82,38 +86,50 @@ class DummyFetcher(BaseFetcher):
         self,
         state: str,
         arch_list: list[str],
-    ) -> Iterator[BuildRecord]:
+    ) -> BuildRecordSet:
         """Get build records matching the given state and architectures."""
-        print(f"Processing dummy data '{state}'")
+        arch_set = set(arch_list)
+        matched = [
+            b for b in self.data["builds"] if b["buildstate"] == state and b["arch_tag"] in arch_set
+        ]
+        total = len(matched)
+        verbose = self.verbose
 
-        for build_data in self.data["builds"]:
-            # Filter by build state
-            if build_data["buildstate"] != state:
-                continue
+        def factory(
+            on_item: Callable[[str | None], None] | None,
+        ) -> Iterator[BuildRecord]:
+            for build_data in matched:
+                # Parse datebuilt
+                datebuilt = None
+                if build_data.get("datebuilt"):
+                    datebuilt = datetime.fromisoformat(
+                        build_data["datebuilt"].replace("+00:00", "")
+                    )
 
-            # Filter by architecture
-            if build_data["arch_tag"] not in arch_list:
-                continue
+                if verbose:
+                    print(
+                        f"  {datebuilt} {build_data['source_package_name']} "
+                        f"{build_data['arch_tag']}",
+                        file=sys.stderr,
+                    )
 
-            # Parse datebuilt
-            datebuilt = None
-            if build_data.get("datebuilt"):
-                datebuilt = datetime.fromisoformat(build_data["datebuilt"].replace("+00:00", ""))
+                if on_item:
+                    on_item(None)
 
-            print(f"  {datebuilt} {build_data['source_package_name']} {build_data['arch_tag']}")
+                yield BuildRecord(
+                    source_package_name=build_data["source_package_name"],
+                    source_package_version=build_data.get("source_package_version", ""),
+                    arch_tag=build_data["arch_tag"],
+                    buildstate=build_data["buildstate"],
+                    datebuilt=datebuilt,
+                    current_source_publication_link=build_data["current_source_publication_link"],
+                    build_log_url=build_data.get("build_log_url"),
+                    upload_log_url=build_data.get("upload_log_url"),
+                    dependencies=build_data.get("dependencies"),
+                    self_link=build_data.get("self_link", ""),
+                )
 
-            yield BuildRecord(
-                source_package_name=build_data["source_package_name"],
-                source_package_version=build_data.get("source_package_version", ""),
-                arch_tag=build_data["arch_tag"],
-                buildstate=build_data["buildstate"],
-                datebuilt=datebuilt,
-                current_source_publication_link=build_data["current_source_publication_link"],
-                build_log_url=build_data.get("build_log_url"),
-                upload_log_url=build_data.get("upload_log_url"),
-                dependencies=build_data.get("dependencies"),
-                self_link=build_data.get("self_link", ""),
-            )
+        return BuildRecordSet(factory, total=total)
 
     def check_current_publication(
         self,

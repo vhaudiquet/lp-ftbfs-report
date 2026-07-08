@@ -10,6 +10,7 @@ from lp_ftbfs_report.fetchers.base import (
     ArchiveInfo,
     BaseFetcher,
     BuildRecord,
+    BuildRecordSet,
     FetcherContext,
     SeriesInfo,
     translate_api_web,
@@ -21,6 +22,7 @@ from lp_ftbfs_report.fetchers.test_rebuild import TestRebuildFetcher
 __all__ = [
     "BaseFetcher",
     "BuildRecord",
+    "BuildRecordSet",
     "ArchiveInfo",
     "SeriesInfo",
     "FetcherContext",

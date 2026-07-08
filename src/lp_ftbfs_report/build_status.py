@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from datetime import datetime, timezone
 from optparse import OptionParser
 from typing import Any
@@ -68,11 +69,11 @@ def setup_fetcher_and_context(
 
     if options.ppa_spec:
         # PPA mode
-        print(f"PPA mode: {options.ppa_spec}")
+        print(f"PPA mode: {options.ppa_spec}", file=sys.stderr)
         try:
             ppa_owner, ppa_name = parse_ppa_spec(options.ppa_spec)
         except ValueError as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}", file=sys.stderr)
             return None
 
         series_name = args[0]
@@ -86,9 +87,10 @@ def setup_fetcher_and_context(
                 ppa_name=ppa_name,
                 series_name=series_name,
                 api_version=api_version,
+                verbose=options.verbose,
             )
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}", file=sys.stderr)
             return None
 
         archive = fetcher.ppa
@@ -101,14 +103,16 @@ def setup_fetcher_and_context(
 
     elif options.dummy_fixture:
         # Dummy data mode
-        print(f"Dummy data mode: {options.dummy_fixture}")
+        print(f"Dummy data mode: {options.dummy_fixture}", file=sys.stderr)
         series_name = args[0]
         arch_args = args[1:]
 
         try:
-            fetcher = DummyFetcher(options.dummy_fixture, api_version=api_version)
+            fetcher = DummyFetcher(
+                options.dummy_fixture, api_version=api_version, verbose=options.verbose
+            )
         except Exception as e:
-            print(f"Error loading dummy data: {e}")
+            print(f"Error loading dummy data: {e}", file=sys.stderr)
             return None
 
         series = fetcher.create_mock_series()
@@ -131,31 +135,31 @@ def setup_fetcher_and_context(
         try:
             archive = ubuntu.getArchive(name=archive_name)
         except HTTPError:
-            print(f"Error: {archive_name} is not a valid archive.")
+            print(f"Error: {archive_name} is not a valid archive.", file=sys.stderr)
             return None
 
         if options.updates_archive:
             try:
                 updates_archive = ubuntu.getArchive(name=options.updates_archive)
             except HTTPError:
-                print(f"Error: {options.updates_archive} is not a valid archive.")
+                print(f"Error: {options.updates_archive} is not a valid archive.", file=sys.stderr)
                 return None
         else:
-            print("no updates-archive is used")
+            print("no updates-archive is used", file=sys.stderr)
 
         if options.ref_series:
             try:
                 ref_series = ubuntu.getSeries(name_or_version=options.ref_series)
             except HTTPError:
-                print(f"Error: {options.ref_series} is not a valid series.")
+                print(f"Error: {options.ref_series} is not a valid series.", file=sys.stderr)
                 return None
         else:
-            print("no reference series is used")
+            print("no reference series is used", file=sys.stderr)
 
         try:
             series = ubuntu.getSeries(name_or_version=series_name)
         except HTTPError:
-            print(f"Error: {series_name} is not a valid series.")
+            print(f"Error: {series_name} is not a valid series.", file=sys.stderr)
             return None
 
         if options.name is None:
@@ -178,6 +182,7 @@ def setup_fetcher_and_context(
             release_only=options.release_only,
             regressions_only=options.regressions_only,
             api_version=api_version,
+            verbose=options.verbose,
         )
 
         updates_fetcher = None
@@ -193,6 +198,7 @@ def setup_fetcher_and_context(
                 release_only=options.release_only,
                 regressions_only=options.regressions_only,
                 api_version=api_version,
+                verbose=options.verbose,
             )
 
     return (
@@ -258,6 +264,15 @@ def main() -> None:
         default=None,
         help="Directory where generated HTML and CSV reports are written (defaults to the package directory).",
     )
+    parser.add_option(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="Print per-build detail (never-built, reference-build lookups, etc.). "
+        "Without this flag only a compact progress line per build state is shown.",
+    )
     (options, args) = parser.parse_args()
 
     # Determine mode based on flags
@@ -314,7 +329,7 @@ def main() -> None:
     generated_info = datetime.now(timezone.utc).strftime("Started: %Y-%m-%d %X")
 
     # Use the archive and series directly (no need for a loop)
-    print(f"Generating FTBFS for {series.fullseriesname}")
+    print(f"Generating FTBFS for {series.fullseriesname}", file=sys.stderr)
 
     # clear all caches
     PersonTeam.clear()
@@ -356,15 +371,16 @@ def main() -> None:
     teams_ftbfs: dict[str, list[SourcePackage]] = {team: [] for team in teams}
 
     if updates_archive:
-        print("XXX: processing updates archive ...")
-        for state in (
+        print("Processing updates archive ...", file=sys.stderr)
+        updates_states = (
             "Successfully built",
             "Failed to build",
             "Dependency wait",
             "Chroot problem",
             "Failed to upload",
             "Cancelled build",
-        ):
+        )
+        for i, state in enumerate(updates_states, start=1):
             fetch_pkg_list(
                 state=state,
                 launchpad=launchpad,
@@ -382,16 +398,20 @@ def main() -> None:
                 ref_series=ref_series,
                 api_version=API_VERSION,
                 fetcher=updates_fetcher,
+                verbose=options.verbose,
+                state_index=i,
+                state_count=len(updates_states),
             )
 
-    print("XXX: processing archive ...")
-    for state in (
+    print("Processing archive ...", file=sys.stderr)
+    archive_states = (
         "Failed to build",
         "Dependency wait",
         "Chroot problem",
         "Failed to upload",
         "Cancelled build",
-    ):
+    )
+    for i, state in enumerate(archive_states, start=1):
         fetch_pkg_list(
             state=state,
             launchpad=launchpad,
@@ -409,6 +429,9 @@ def main() -> None:
             ref_series=ref_series,
             api_version=API_VERSION,
             fetcher=fetcher,
+            verbose=options.verbose,
+            state_index=i,
+            state_count=len(archive_states),
         )
 
     if options.notice_file:
@@ -419,7 +442,7 @@ def main() -> None:
 
     generated_info += datetime.now(timezone.utc).strftime("  /  Finished: %Y-%m-%d %X")
 
-    print("Generating HTML page...")
+    print("Generating HTML page...", file=sys.stderr)
     generate_page(
         options.name,
         archive,
@@ -437,7 +460,7 @@ def main() -> None:
         generated=generated_info,
         output_dir=options.output_dir,
     )
-    print("Generating CSV file...")
+    print("Generating CSV file...", file=sys.stderr)
     generate_csvfile(options.name, components, output_dir=options.output_dir)
 
     # Resolve the actual output directory used (mirrors the default in the generators)
