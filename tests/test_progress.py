@@ -123,7 +123,9 @@ def test_progress_empty_batch_single_line():
 def test_progress_verbose_emits_summary_only():
     """In verbose mode no live bar is drawn; finish() prints a summary line."""
     stream = io.StringIO()
-    progress = Progress(2, "Failed to build", stream=stream, verbose=True, state_index=1, state_count=1)
+    progress = Progress(
+        2, "Failed to build", stream=stream, verbose=True, state_index=1, state_count=1
+    )
     progress.tick()
     progress.mark("kept")
     progress.tick()

@@ -19,6 +19,7 @@ The tracker is intentionally dependency-free.
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from collections.abc import Callable
@@ -148,9 +149,25 @@ class Progress:
             print(self._count_line(), file=self.stream, flush=True)
             self._last_print = time.monotonic()
 
+    def _term_width(self) -> int:
+        """Return the terminal width in columns, or 0 if unknown."""
+        try:
+            return os.get_terminal_size(self.stream.fileno()).columns
+        except (OSError, ValueError):
+            return 0
+
     def _render(self, *, force: bool = False) -> None:
         if self._is_tty:
-            print(f"\r{self._count_line()}", end="", file=self.stream, flush=True)
+            line = self._count_line()
+            width = self._term_width()
+            if width and len(line) >= width:
+                # Truncate so the line never wraps onto a second visual line,
+                # which would leave a stale tail after the next carriage
+                # return.
+                line = line[:width]
+            # Clear from the cursor to the end of the line so that a shorter
+            # redraw does not leave leftover characters from the previous one.
+            print(f"\r{line}\033[K", end="", file=self.stream, flush=True)
             return
         now = time.monotonic()
         if force or now - self._last_print >= self._interval:
