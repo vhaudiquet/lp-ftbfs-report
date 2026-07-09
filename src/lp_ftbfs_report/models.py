@@ -168,39 +168,6 @@ class SourcePackage:
             return list(self.packagesets.difference((name,)))
 
 
-class MainArchiveBuilds:
-    """Cache for main archive build states."""
-
-    _cache: dict[str, MainArchiveBuilds] = {}
-    results: dict[str, str]
-
-    def __new__(cls, main_archive: Any, source: str, version: str) -> MainArchiveBuilds:
-        try:
-            return cls._cache[f"{source},{version}"]
-        except KeyError:
-            bfm = super().__new__(cls)
-            results: dict[str, str] = {}
-            sourcepubs = main_archive.getPublishedSources(
-                exact_match=True, source_name=source, version=version
-            )
-            for pub in sourcepubs:
-                for build in pub.getBuilds():
-                    # assumes sourcepubs are sorted latest release to oldest,
-                    # so first record wins
-                    if build.arch_tag not in results:
-                        results[build.arch_tag] = build.buildstate
-            bfm.results = results
-            # add to cache
-            cls._cache[f"{source},{version}"] = bfm
-
-            return bfm
-
-    @classmethod
-    def clear(cls) -> None:
-        """Clear the cache."""
-        cls._cache.clear()
-
-
 class SPPH:
     """Source Package Publishing History wrapper."""
 

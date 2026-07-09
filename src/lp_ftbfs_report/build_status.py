@@ -37,7 +37,7 @@ from lp_ftbfs_report.csv_generator import generate_csvfile
 from lp_ftbfs_report.data_fetcher import fetch_pkg_list
 from lp_ftbfs_report.fetchers import DummyFetcher, PPAFetcher, TestRebuildFetcher, parse_ppa_spec
 from lp_ftbfs_report.html_generator import generate_page
-from lp_ftbfs_report.models import SPPH, MainArchiveBuilds, PersonTeam, SourcePackage
+from lp_ftbfs_report.models import SPPH, PersonTeam, SourcePackage
 
 # Configuration constants
 LP_SERVICE = "production"
@@ -335,7 +335,6 @@ def main() -> None:
     PersonTeam.clear()
     SourcePackage.clear()
     SPPH.clear()
-    MainArchiveBuilds.clear()
     # list of SourcePackages for each component
     components: dict[str, list[SourcePackage]] = {
         "main": [],

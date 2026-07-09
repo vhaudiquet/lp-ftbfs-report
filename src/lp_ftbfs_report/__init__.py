@@ -4,11 +4,10 @@ This package provides tools to generate HTML and CSV reports about build failure
 in Ubuntu packages using the Launchpad API.
 """
 
-from lp_ftbfs_report.models import SPPH, MainArchiveBuilds, PersonTeam, SourcePackage
+from lp_ftbfs_report.models import SPPH, PersonTeam, SourcePackage
 
 __all__ = [
     "PersonTeam",
     "SourcePackage",
-    "MainArchiveBuilds",
     "SPPH",
 ]

@@ -11,9 +11,7 @@ from lp_ftbfs_report.fetchers.base import (
     BaseFetcher,
     BuildRecord,
     BuildRecordSet,
-    FetcherContext,
     SeriesInfo,
-    translate_api_web,
 )
 from lp_ftbfs_report.fetchers.dummy import DummyFetcher
 from lp_ftbfs_report.fetchers.ppa import PPAFetcher, parse_ppa_spec
@@ -25,10 +23,8 @@ __all__ = [
     "BuildRecordSet",
     "ArchiveInfo",
     "SeriesInfo",
-    "FetcherContext",
     "TestRebuildFetcher",
     "PPAFetcher",
     "DummyFetcher",
     "parse_ppa_spec",
-    "translate_api_web",
 ]
