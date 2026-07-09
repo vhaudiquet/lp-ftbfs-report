@@ -315,7 +315,7 @@ class TestRebuildFetcher(BaseFetcher):
                 )
                 response.raise_for_status()
                 self._teams = response.json()
-            except Exception as e:
+            except (requests.RequestException, ValueError) as e:
                 print(f"Warning: Could not fetch team mappings: {e}", file=sys.stderr)
                 self._teams = {}
         return self._teams

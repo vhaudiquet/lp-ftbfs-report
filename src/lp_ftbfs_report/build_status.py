@@ -117,7 +117,7 @@ def setup_fetcher_and_context(
                 api_version=api_version,
                 verbose=options.verbose,
             )
-        except Exception as e:
+        except (HTTPError, ValueError) as e:
             print(f"Error: {e}", file=sys.stderr)
             return None
 
@@ -139,7 +139,7 @@ def setup_fetcher_and_context(
             fetcher = DummyFetcher(
                 options.dummy_fixture, api_version=api_version, verbose=options.verbose
             )
-        except Exception as e:
+        except (OSError, ValueError) as e:
             print(f"Error loading dummy data: {e}", file=sys.stderr)
             return None
 

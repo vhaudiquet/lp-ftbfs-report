@@ -15,6 +15,9 @@ import sys
 from collections.abc import Callable, Iterator
 from typing import Any
 
+import requests
+from launchpadlib.errors import HTTPError
+
 from lp_ftbfs_report.fetchers.base import (
     ArchiveInfo,
     BaseFetcher,
@@ -268,7 +271,7 @@ class PPAFetcher(BaseFetcher):
         try:
             ts = self.ubuntu.getSourcePackage(name=source_name).searchTasks(tags=tag)
             return [t.bug for t in ts]
-        except Exception as e:
+        except (HTTPError, requests.RequestException) as e:
             print(f"Warning: Could not search bugs for {source_name}: {e}", file=sys.stderr)
             return []
 
