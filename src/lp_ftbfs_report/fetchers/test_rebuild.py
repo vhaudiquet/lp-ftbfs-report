@@ -79,7 +79,12 @@ class TestRebuildFetcher(BaseFetcher):
 
         # Caches
         self.update_builds: dict[tuple[str, str], Any] = {}
-        self.reference_builds: dict[tuple[str, str, str, str], Any] = {}
+        # Successful builds found in the reference series, keyed by
+        # (source_name, series_name, pocket, arch) -> Launchpad build object.
+        self._reference_build_cache: dict[tuple[str, str, str, str], Any] = {}
+        # Build states from the main archive for regression detection, keyed by
+        # (source_name, version) -> {arch_tag: buildstate}.
+        self._main_build_state_cache: dict[tuple[str, str], dict[str, str]] = {}
         self._packagesets: dict[str, list[str]] | None = None
         self._teams: dict[str, list[str]] | None = None
 
@@ -224,7 +229,7 @@ class TestRebuildFetcher(BaseFetcher):
 
         # Check cache first
         for pocket in pockets:
-            br = self.reference_builds.get((source_name, self.series.name, pocket, arch))
+            br = self._reference_build_cache.get((source_name, self.series.name, pocket, arch))
             if br:
                 if self.verbose:
                     print(f"        cache: {br.source_package_name} {br.arch_tag}", file=sys.stderr)
@@ -268,12 +273,14 @@ class TestRebuildFetcher(BaseFetcher):
                 b_arch = b.distro_arch_series_link.split("/")[-1]
 
                 # Get the build
-                br = self.reference_builds.get((source_name, self.series.name, b.pocket, b_arch))
+                br = self._reference_build_cache.get(
+                    (source_name, self.series.name, b.pocket, b_arch)
+                )
                 if not br:
                     br = b.build
 
                 # Cache for any architecture
-                self.reference_builds[(source_name, self.series.name, b.pocket, b_arch)] = br
+                self._reference_build_cache[(source_name, self.series.name, b.pocket, b_arch)] = br
 
                 if arch == br.arch_tag:
                     found = br
@@ -323,10 +330,12 @@ class TestRebuildFetcher(BaseFetcher):
         if not self.main_archive:
             return None
 
-        # Check cache - use a dict[str, dict[str, str]] for this cache
-        cache_key = f"{source_name},{version}"
-        results: dict[str, str]
-        if cache_key not in self.reference_builds:
+        # Check cache - key by (source_name, version) tuple to avoid the
+        # comma-join collision risk (a comma in a name or version would
+        # otherwise map two distinct packages to the same cache entry).
+        cache_key = (source_name, version)
+        results = self._main_build_state_cache.get(cache_key)
+        if results is None:
             # Fetch and cache
             results = {}
             sourcepubs = self.main_archive.getPublishedSources(
@@ -337,9 +346,7 @@ class TestRebuildFetcher(BaseFetcher):
                     # First record wins (sorted latest to oldest)
                     if build.arch_tag not in results:
                         results[build.arch_tag] = build.buildstate
-            self.reference_builds[cache_key] = results  # type: ignore[assignment]
-        else:
-            results = self.reference_builds[cache_key]  # type: ignore[assignment]
+            self._main_build_state_cache[cache_key] = results
 
         return results.get(arch)
 
