@@ -25,9 +25,9 @@ from __future__ import annotations
 
 import os
 import sys
+from argparse import SUPPRESS, ArgumentParser
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from optparse import OptionParser
 from typing import Any
 
 import requests
@@ -245,53 +245,58 @@ def setup_fetcher_and_context(
 
 def main() -> None:
     """Main entry point for the FTBFS report generator."""
-    usage = "usage: %prog [options] <archive> <series> <arch> [<arch> ...]\n       %prog --ppa <owner/ppaname> <series> <arch> [<arch> ...]\n       %prog --dummy-data <fixture-file> <series> <arch> [<arch> ...]"
-    parser = OptionParser(usage=usage)
-    parser.add_option("-f", "--filename", dest="name", help="File name prefix for the result.")
-    parser.add_option(
+    usage = (
+        "%(prog)s [options] <archive> <series> <arch> [<arch> ...]\n"
+        "       %(prog)s --ppa <owner/ppaname> <series> <arch> [<arch> ...]\n"
+        "       %(prog)s --dummy-data <fixture-file> <series> <arch> [<arch> ...]"
+    )
+    parser = ArgumentParser(usage=usage)
+    parser.add_argument("-f", "--filename", dest="name", help="File name prefix for the result.")
+    parser.add_argument(
         "-n",
         "--notice",
         dest="notice_file",
         help="HTML notice file to include in the page header.",
     )
-    parser.add_option(
+    parser.add_argument(
         "--regressions-only",
         dest="regressions_only",
         action="store_true",
         default=False,
         help="Only report build regressions, compared to the main archive.",
     )
-    parser.add_option(
+    parser.add_argument(
         "--release-only",
         dest="release_only",
         action="store_true",
+        default=False,
         help="Only include sources currently published in the release pocket.",
     )
-    parser.add_option(
+    parser.add_argument(
         "--updates-archive", dest="updates_archive", help="Name of an updates archive."
     )
-    parser.add_option(
+    parser.add_argument(
         "--reference-series",
         dest="ref_series",
         help="Name of the series to look for successful builds.",
     )
-    parser.add_option(
+    parser.add_argument(
         "--ppa",
         dest="ppa_spec",
         help="Generate report for a PPA. Format: owner/ppaname or ppa:owner/ppaname",
     )
-    parser.add_option(
+    parser.add_argument(
         "--dummy-data",
         dest="dummy_fixture",
         help="Use dummy data from JSON fixture file for testing.",
     )
-    parser.add_option(
+    parser.add_argument(
         "--output-dir",
         dest="output_dir",
         default=None,
         help="Directory where generated HTML and CSV reports are written (defaults to the package directory).",
     )
-    parser.add_option(
+    parser.add_argument(
         "-v",
         "--verbose",
         dest="verbose",
@@ -300,7 +305,11 @@ def main() -> None:
         help="Print per-build detail (never-built, reference-build lookups, etc.). "
         "Without this flag only a compact progress line per build state is shown.",
     )
-    (options, args) = parser.parse_args()
+    # Positional arguments are mode-dependent (archive/series/arch), validated
+    # manually below; the multi-mode usage string above documents them.
+    parser.add_argument("args", nargs="*", help=SUPPRESS)
+    options = parser.parse_args()
+    args = options.args
 
     # Determine mode based on flags
     if options.ppa_spec:
