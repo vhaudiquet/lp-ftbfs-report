@@ -282,8 +282,8 @@ class SPPH:
                 self.tooltip = "Broken build"
             else:
                 if build.datebuilt:
-                    self.tooltip = "Build finished on {}".format(
-                        build.datebuilt.strftime("%Y-%m-%d %H:%M:%S UTC")
+                    self.tooltip = (
+                        f"Build finished on {build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')}"
                     )
                 else:
                     self.tooltip = "Build finish unknown"

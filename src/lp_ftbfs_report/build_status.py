@@ -355,7 +355,7 @@ def main() -> None:
     default_arch_list: list[str] = []
     for arch in arch_args:
         das = series.getDistroArchSeries(archtag=arch)
-        archs_by_archive[das.official and "main" or "ports"].append(arch)
+        archs_by_archive["main" if das.official else "ports"].append(arch)
     default_arch_list.extend(archs_by_archive["main"])
     default_arch_list.extend(archs_by_archive["ports"])
 

@@ -14,7 +14,6 @@ from __future__ import annotations
 import os
 import shutil
 import time
-from operator import methodcaller
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
@@ -65,12 +64,11 @@ def generate_page(
 
     def filter_ftbfs(pkglist: list[SourcePackage], current: bool) -> list[SourcePackage]:
         """Filter and sort packages that have FTBFS."""
-        return list(
-            filter(
-                methodcaller("isFTBFS", arch_list, current),
-                sorted(pkglist, key=lambda src: src.name),
-            )
-        )
+        return [
+            pkg
+            for pkg in sorted(pkglist, key=lambda src: src.name)
+            if pkg.isFTBFS(arch_list, current)
+        ]
 
     data: dict[str, Any] = {}
     for comp in ("main", "restricted", "universe", "multiverse"):
@@ -109,8 +107,8 @@ def generate_page(
             cnt = 0
             cnt_sup = 0
             for comp in ("main", "restricted", "universe", "multiverse"):
-                s = sum([pkg.getCount(arch, state) for pkg in data[comp]])
-                s_sup = sum([pkg.getCount(arch, state) for pkg in data[f"{comp}_superseded"]])
+                s = sum(pkg.getCount(arch, state) for pkg in data[comp])
+                s_sup = sum(pkg.getCount(arch, state) for pkg in data[f"{comp}_superseded"])
                 if s or s_sup:
                     cnt += s
                     cnt_sup += s_sup

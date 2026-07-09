@@ -56,6 +56,4 @@ def generate_csvfile(
                         ]
                         if archs:
                             log = ver.logs[archs[0]].log
-                            writer.writerow(
-                                [pkg.name, log, "[{}] {}".format(", ".join(archs), state)]
-                            )
+                            writer.writerow([pkg.name, log, f"[{', '.join(archs)}] {state}"])
