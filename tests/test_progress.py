@@ -137,3 +137,39 @@ def test_progress_verbose_emits_summary_only():
     # Header then summary.
     assert lines[0] == "[1/1] Failed to build: 2 records"
     assert lines[-1] == "[1/1] Failed to build: done  kept=2  skipped=0  never-built=1"
+
+
+class _BrokenFilenoStream(io.StringIO):
+    """A TTY-like stream whose fileno() raises a non-OSError/ValueError.
+
+    Simulates snap log capture / custom test streams that lack a real file
+    descriptor. _term_width() must treat this as "width unknown" (0) rather
+    than letting the exception escape and crash the run.
+    """
+
+    def isatty(self) -> bool:
+        return True
+
+    def fileno(self) -> int:
+        raise AttributeError("no underlying fd")
+
+
+def test_progress_tty_with_broken_fileno_does_not_crash():
+    """A TTY stream whose fileno() raises must not break rendering.
+
+    _term_width() is a best-effort probe called on every render; it must
+    swallow any exception (not just OSError/ValueError) and return 0 so the
+    progress line still renders with the clear-to-EOL escape and the run
+    continues.
+    """
+    stream = _BrokenFilenoStream()
+    progress = Progress(2, "Failed to build", stream=stream, state_index=1, state_count=1)
+    progress.tick()
+    progress.mark("kept")
+    progress.finish()
+
+    # The carriage-return line plus the trailing newline from finish().
+    raw = stream.getvalue()
+    assert "\r[1/1] Failed to build: 1/2 (50%)" in raw
+    assert "\x1b[K" in raw  # clear-to-end-of-line escape emitted
+    assert raw.endswith("\n")

@@ -150,10 +150,17 @@ class Progress:
             self._last_print = time.monotonic()
 
     def _term_width(self) -> int:
-        """Return the terminal width in columns, or 0 if unknown."""
+        """Return the terminal width in columns, or 0 if unknown.
+
+        This is a best-effort probe: the stream may be a real TTY, a pipe,
+        or a custom capture object (snap logs, tests) whose ``fileno()``
+        raises something other than OSError/ValueError. Since it is called
+        on every render, never let it raise — returning 0 simply disables
+        truncation.
+        """
         try:
             return os.get_terminal_size(self.stream.fileno()).columns
-        except (OSError, ValueError):
+        except Exception:
             return 0
 
     def _render(self, *, force: bool = False) -> None:
