@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import csv
 import os
 
 from lp_ftbfs_report.models import SourcePackage
@@ -29,10 +30,11 @@ def generate_csvfile(
     if output_dir is None:
         output_dir = os.getcwd()
 
+    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f"{name}.csv")
 
-    with open(output_path, "w") as csvout:
-        linetemplate = "%(name)s,%(link)s,%(explain)s\n"
+    with open(output_path, "w", newline="") as csvout:
+        writer = csv.writer(csvout)
         for comp in list(components.values()):
             for pkg in comp:
                 for ver in pkg.versions:
@@ -54,11 +56,6 @@ def generate_csvfile(
                         ]
                         if archs:
                             log = ver.logs[archs[0]].log
-                            csvout.write(
-                                linetemplate
-                                % {
-                                    "name": pkg.name,
-                                    "link": log,
-                                    "explain": "[{}] {}".format(", ".join(archs), state),
-                                }
+                            writer.writerow(
+                                [pkg.name, log, "[{}] {}".format(", ".join(archs), state)]
                             )

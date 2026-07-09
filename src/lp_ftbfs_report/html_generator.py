@@ -164,6 +164,8 @@ def generate_page(
     if output_dir is None:
         output_dir = os.getcwd()
 
+    os.makedirs(output_dir, exist_ok=True)
+
     # Copy static assets to the output directory so the HTML page works standalone.
     _html_dir = os.path.join(os.path.dirname(__file__), "html")
     for asset in os.listdir(_html_dir):
