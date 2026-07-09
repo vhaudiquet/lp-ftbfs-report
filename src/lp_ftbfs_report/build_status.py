@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from optparse import OptionParser
 from typing import Any
@@ -35,7 +36,13 @@ from launchpadlib.launchpad import Launchpad
 
 from lp_ftbfs_report.csv_generator import generate_csvfile
 from lp_ftbfs_report.data_fetcher import fetch_pkg_list
-from lp_ftbfs_report.fetchers import DummyFetcher, PPAFetcher, TestRebuildFetcher, parse_ppa_spec
+from lp_ftbfs_report.fetchers import (
+    BaseFetcher,
+    DummyFetcher,
+    PPAFetcher,
+    TestRebuildFetcher,
+    parse_ppa_spec,
+)
 from lp_ftbfs_report.html_generator import generate_page
 from lp_ftbfs_report.models import SPPH, PersonTeam, SourcePackage
 
@@ -45,9 +52,30 @@ API_VERSION = "devel"
 FIND_TAGGED_BUGS = "ftbfs"
 
 
+@dataclass
+class ReportSetup:
+    """Resolved fetcher, archives, series and arch args for a report run.
+
+    Returned by :func:`setup_fetcher_and_context`. ``main_series`` is not
+    included: it is only used while building the fetcher and is already held
+    on the fetcher instance.
+    """
+
+    fetcher: BaseFetcher
+    updates_fetcher: BaseFetcher | None
+    archive: Any
+    series: Any
+    launchpad: Any
+    ubuntu: Any
+    main_archive: Any
+    updates_archive: Any
+    ref_series: Any
+    arch_args: list[str]
+
+
 def setup_fetcher_and_context(
     options: Any, args: list[str], launchpad: Any, ubuntu: Any, api_version: str
-) -> tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, list[str]] | None:
+) -> ReportSetup | None:
     """Set up the appropriate fetcher and context for the selected mode.
 
     Args:
@@ -201,18 +229,17 @@ def setup_fetcher_and_context(
                 verbose=options.verbose,
             )
 
-    return (
-        fetcher,
-        updates_fetcher,
-        archive,
-        series,
-        launchpad,
-        ubuntu,
-        main_archive,
-        main_series,
-        updates_archive,
-        ref_series,
-        arch_args,
+    return ReportSetup(
+        fetcher=fetcher,
+        updates_fetcher=updates_fetcher,
+        archive=archive,
+        series=series,
+        launchpad=launchpad,
+        ubuntu=ubuntu,
+        main_archive=main_archive,
+        updates_archive=updates_archive,
+        ref_series=ref_series,
+        arch_args=arch_args,
     )
 
 
@@ -303,19 +330,16 @@ def main() -> None:
     if result is None:
         return
 
-    (
-        fetcher,
-        updates_fetcher,
-        archive,
-        series,
-        launchpad,
-        ubuntu,
-        main_archive,
-        main_series,
-        updates_archive,
-        ref_series,
-        arch_args,
-    ) = result
+    fetcher = result.fetcher
+    updates_fetcher = result.updates_fetcher
+    archive = result.archive
+    series = result.series
+    launchpad = result.launchpad
+    ubuntu = result.ubuntu
+    main_archive = result.main_archive
+    updates_archive = result.updates_archive
+    ref_series = result.ref_series
+    arch_args = result.arch_args
 
     # Process architecture list
     archs_by_archive: dict[str, list[str]] = {"main": [], "ports": []}
