@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -61,6 +61,19 @@ def test_buildlog_finished_on_tooltip_when_datebuilt_present():
     build = _record(buildstate="Failed to build", datebuilt=when)
     log = SPPH.BuildLog(build, never_built=False, no_regression=False)
     assert log.tooltip == "Build finished on 2026-04-01 12:30:45 UTC"
+
+
+def test_buildlog_finished_on_normalizes_non_utc_offset_to_utc():
+    """A non-UTC offset is normalized to UTC before being labelled "UTC".
+
+    datebuilt may carry a non-UTC offset (e.g. a fixture timestamp), and the
+    tooltip must not present a non-UTC wall-clock time as UTC. 12:00+02:00 is
+    10:00 UTC.
+    """
+    when = datetime(2026, 4, 1, 12, 0, 0, tzinfo=timezone(timedelta(hours=2)))
+    build = _record(buildstate="Failed to build", datebuilt=when)
+    log = SPPH.BuildLog(build, never_built=False, no_regression=False)
+    assert log.tooltip == "Build finished on 2026-04-01 10:00:00 UTC"
 
 
 def test_buildlog_never_built_overrides_ftbfs():

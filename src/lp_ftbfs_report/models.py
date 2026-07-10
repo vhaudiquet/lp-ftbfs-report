@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import timezone
 from typing import Any
 
 import debian.debian_support
@@ -293,9 +294,11 @@ class SPPH:
             elif build.datebuilt is None:
                 self.tooltip = "Broken build"
             else:
-                self.tooltip = (
-                    f"Build finished on {build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')}"
-                )
+                # Normalize to UTC before formatting: datebuilt may carry a
+                # non-UTC offset (e.g. a fixture timestamp), and labelling a
+                # non-UTC wall-clock time as "UTC" would be wrong.
+                when = build.datebuilt.astimezone(timezone.utc)
+                self.tooltip = f"Build finished on {when.strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
     def addBuildLog(
         self,
