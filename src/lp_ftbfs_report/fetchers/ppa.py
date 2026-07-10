@@ -109,10 +109,8 @@ class PPAFetcher(BaseFetcher):
         # PPAs use archive.getBuildRecords
         buildlist = self.ppa.getBuildRecords(build_state=state)
 
-        try:
-            total = len(buildlist)
-        except Exception:
-            total = None
+        # lazr Collections expose total_size but not __len__; see TestRebuildFetcher.
+        total = getattr(buildlist, "total_size", None)
 
         arch_set = set(arch_list)
         verbose = self.verbose

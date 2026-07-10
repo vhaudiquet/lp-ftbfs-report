@@ -117,10 +117,11 @@ class TestRebuildFetcher(BaseFetcher):
         else:
             buildlist = self.archive.getBuildRecords(build_state=state)
 
-        try:
-            total = len(buildlist)
-        except Exception:
-            total = None
+        # lazr.restfulclient Collections expose total_size (the count from the
+        # LP API total_size link relation) but not __len__, so use it directly
+        # instead of the old len() + except-Exception fallback that always
+        # yielded None ("unknown count").
+        total = getattr(buildlist, "total_size", None)
 
         arch_set = set(arch_list)
         verbose = self.verbose
