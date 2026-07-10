@@ -324,14 +324,6 @@ class DummyFetcher(BaseFetcher):
             def load(self, url):
                 return self.fetcher.load_launchpad_object(url)
 
-            def search_tasks(self, *args, **kwargs):  # noqa: ARG002
-                # For bug searches
-                tags = kwargs.get("tags", [])
-                source_name = kwargs.get("source_package_name", "")
-                if tags and source_name:
-                    return self.fetcher.search_bugs(source_name, tags[0])
-                return []
-
             def getSourcePackage(self, name):  # noqa: ARG002
                 # Return a mock source package for bug searches
                 parent = self
