@@ -80,7 +80,7 @@ class TestRebuildFetcher(BaseFetcher):
         # Caches
         self.update_builds: dict[tuple[str, str], Any] = {}
         # Successful builds found in the reference series, keyed by
-        # (source_name, series_name, pocket, arch) -> Launchpad build object.
+        # (source_name, ref_series_name, pocket, arch) -> Launchpad build object.
         self._reference_build_cache: dict[tuple[str, str, str, str], Any] = {}
         # Build states from the main archive for regression detection, keyed by
         # (source_name, version) -> {arch_tag: buildstate}.
@@ -219,13 +219,17 @@ class TestRebuildFetcher(BaseFetcher):
 
         if self.verbose:
             print(
-                f"    Find reference build: {source_name} / {arch} / {pockets} / {self.series.name}",
+                f"    Find reference build: {source_name} / {arch} / {pockets} / "
+                f"{self.ref_series.name}",
                 file=sys.stderr,
             )
 
-        # Check cache first
+        # Check cache first. Key by the *reference* series: the search is
+        # performed against self.ref_series, so caching under the report
+        # series would silently return the wrong series' build if a fetcher
+        # ever served more than one report/ref-series pair.
         for pocket in pockets:
-            br = self._reference_build_cache.get((source_name, self.series.name, pocket, arch))
+            br = self._reference_build_cache.get((source_name, self.ref_series.name, pocket, arch))
             if br:
                 if self.verbose:
                     print(f"        cache: {br.source_package_name} {br.arch_tag}", file=sys.stderr)
@@ -270,13 +274,15 @@ class TestRebuildFetcher(BaseFetcher):
 
                 # Get the build
                 br = self._reference_build_cache.get(
-                    (source_name, self.series.name, b.pocket, b_arch)
+                    (source_name, self.ref_series.name, b.pocket, b_arch)
                 )
                 if not br:
                     br = b.build
 
                 # Cache for any architecture
-                self._reference_build_cache[(source_name, self.series.name, b.pocket, b_arch)] = br
+                self._reference_build_cache[
+                    (source_name, self.ref_series.name, b.pocket, b_arch)
+                ] = br
 
                 if arch == br.arch_tag:
                     found = br
