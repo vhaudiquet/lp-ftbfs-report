@@ -281,12 +281,9 @@ class SPPH:
             elif build.datebuilt is None:
                 self.tooltip = "Broken build"
             else:
-                if build.datebuilt:
-                    self.tooltip = (
-                        f"Build finished on {build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')}"
-                    )
-                else:
-                    self.tooltip = "Build finish unknown"
+                self.tooltip = (
+                    f"Build finished on {build.datebuilt.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                )
 
     def addBuildLog(
         self,
