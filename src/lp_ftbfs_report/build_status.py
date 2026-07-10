@@ -34,7 +34,7 @@ from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
 
 from lp_ftbfs_report.csv_generator import generate_csvfile
-from lp_ftbfs_report.data_fetcher import fetch_pkg_list
+from lp_ftbfs_report.data_fetcher import FetchContext, ReportAccumulators, fetch_pkg_list
 from lp_ftbfs_report.fetchers import (
     BaseFetcher,
     DummyFetcher,
@@ -389,8 +389,31 @@ def main() -> None:
     # Per team list of FTBFS
     teams_ftbfs: dict[str, list[SourcePackage]] = {team: [] for team in teams}
 
+    # Run-wide context and shared accumulators, reused across both the
+    # updates-archive and main archive passes and every build state.
+    ctx = FetchContext(
+        launchpad=launchpad,
+        ubuntu=ubuntu,
+        main_archive=main_archive,
+        ref_series=ref_series,
+        find_tagged_bugs=FIND_TAGGED_BUGS,
+        api_version=API_VERSION,
+        verbose=options.verbose,
+        regressions_only=options.regressions_only,
+    )
+    accumulators = ReportAccumulators(
+        components=components,
+        packagesets=packagesets,
+        packagesets_ftbfs=packagesets_ftbfs,
+        teams=teams,
+        teams_ftbfs=teams_ftbfs,
+    )
+
     if updates_archive:
         print("Processing updates archive ...", file=sys.stderr)
+        # updates_fetcher is set together with updates_archive in
+        # setup_fetcher_and_context, so it is non-None here.
+        assert updates_fetcher is not None
         updates_states = (
             "Successfully built",
             "Failed to build",
@@ -402,22 +425,11 @@ def main() -> None:
         for i, state in enumerate(updates_states, start=1):
             fetch_pkg_list(
                 state=state,
-                launchpad=launchpad,
-                ubuntu=ubuntu,
-                find_tagged_bugs=FIND_TAGGED_BUGS,
-                packagesets=packagesets,
-                packagesets_ftbfs=packagesets_ftbfs,
-                teams=teams,
-                teams_ftbfs=teams_ftbfs,
-                components=components,
                 arch_list=default_arch_list,
-                main_archive=main_archive,
-                is_updates_archive=True,
-                regressions_only=options.regressions_only,
-                ref_series=ref_series,
-                api_version=API_VERSION,
                 fetcher=updates_fetcher,
-                verbose=options.verbose,
+                accumulators=accumulators,
+                ctx=ctx,
+                is_updates_archive=True,
                 state_index=i,
                 state_count=len(updates_states),
             )
@@ -433,22 +445,10 @@ def main() -> None:
     for i, state in enumerate(archive_states, start=1):
         fetch_pkg_list(
             state=state,
-            launchpad=launchpad,
-            ubuntu=ubuntu,
-            find_tagged_bugs=FIND_TAGGED_BUGS,
-            packagesets=packagesets,
-            packagesets_ftbfs=packagesets_ftbfs,
-            teams=teams,
-            teams_ftbfs=teams_ftbfs,
-            components=components,
             arch_list=default_arch_list,
-            main_archive=main_archive,
-            is_updates_archive=False,
-            regressions_only=options.regressions_only,
-            ref_series=ref_series,
-            api_version=API_VERSION,
             fetcher=fetcher,
-            verbose=options.verbose,
+            accumulators=accumulators,
+            ctx=ctx,
             state_index=i,
             state_count=len(archive_states),
         )

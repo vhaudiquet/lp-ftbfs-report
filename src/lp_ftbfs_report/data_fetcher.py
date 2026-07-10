@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from typing import Any
 
 from lp_ftbfs_report.fetchers import BaseFetcher
@@ -19,24 +20,48 @@ from lp_ftbfs_report.models import SPPH, SourcePackage
 from lp_ftbfs_report.progress import Progress
 
 
+@dataclass
+class ReportAccumulators:
+    """Mutable containers shared across build-state passes.
+
+    Built up by :func:`fetch_pkg_list` as it walks each build state; read by
+    the HTML/CSV generators afterwards.
+    """
+
+    components: dict[str, list[SourcePackage]]
+    packagesets: dict[str, list[str]]
+    packagesets_ftbfs: dict[str, list[SourcePackage]]
+    teams: dict[str, list[str]]
+    teams_ftbfs: dict[str, list[SourcePackage]]
+
+
+@dataclass
+class FetchContext:
+    """Run-wide invariant context for :func:`fetch_pkg_list`.
+
+    Holds the values that do not change between the updates-archive and main
+    archive passes (or between build states), so the per-call signature stays
+    small.
+    """
+
+    launchpad: Any
+    ubuntu: Any
+    main_archive: Any
+    ref_series: Any
+    find_tagged_bugs: str | None
+    api_version: str = "devel"
+    verbose: bool = False
+    regressions_only: bool = False
+
+
 def fetch_pkg_list(
     state: str,
-    launchpad: Any,
-    ubuntu: Any,
-    find_tagged_bugs: str | None,
-    packagesets: dict[str, list[str]],
-    packagesets_ftbfs: dict[str, list[SourcePackage]],
-    teams: dict[str, list[str]],
-    teams_ftbfs: dict[str, list[SourcePackage]],
-    components: dict[str, list[SourcePackage]],
     arch_list: list[str],
-    main_archive: Any = None,
+    fetcher: BaseFetcher,
+    accumulators: ReportAccumulators,
+    ctx: FetchContext,
+    *,
     is_updates_archive: bool = False,
-    regressions_only: bool = False,
-    ref_series: Any = None,
-    api_version: str = "devel",
-    fetcher: BaseFetcher | None = None,
-    verbose: bool = False,
     state_index: int | None = None,
     state_count: int | None = None,
 ) -> None:
@@ -44,33 +69,19 @@ def fetch_pkg_list(
 
     Args:
         state: Build state to filter by
-        launchpad: Launchpad instance (for model compatibility)
-        ubuntu: Ubuntu distribution (for model compatibility)
-        find_tagged_bugs: Tag to search for bugs
-        packagesets: Dictionary of package sets
-        packagesets_ftbfs: Dictionary to store FTBFS packages per packageset
-        teams: Dictionary of teams
-        teams_ftbfs: Dictionary to store FTBFS packages per team
-        components: Dictionary to store packages per component
         arch_list: List of architectures to process
-        main_archive: Main archive for comparison
-        is_updates_archive: Whether this is an updates archive
-        regressions_only: Only report regressions
-        ref_series: Reference series for comparison
-        api_version: API version string
-        fetcher: Data fetcher instance
-        verbose: When True, emit per-build detail to stderr.
-        state_index: 1-based index of this state within its phase.
-        state_count: Number of states in this phase.
+        fetcher: Data fetcher instance yielding build records
+        accumulators: Shared mutable containers (components, packagesets, teams)
+        ctx: Run-wide invariant context (launchpad, archives, flags, ...)
+        is_updates_archive: Whether this is an updates archive pass
+        state_index: 1-based index of this state within its phase
+        state_count: Number of states in this phase
     """
-    if fetcher is None:
-        raise ValueError("fetcher must be provided")
-
     records = fetcher.get_build_records(state, arch_list)
     progress = Progress(
         records.total,
         state,
-        verbose=verbose,
+        verbose=ctx.verbose,
         state_index=state_index,
         state_count=state_count,
     )
@@ -98,7 +109,7 @@ def fetch_pkg_list(
             ) and fetcher.check_update_archive_success(  # type: ignore[call-non-callable]
                 build_record.source_package_name, build_record.arch_tag
             ):
-                if verbose:
+                if ctx.verbose:
                     print(
                         f"    Skipping {build_record.source_package_name}, "
                         "build succeeded in updates-archive",
@@ -111,15 +122,15 @@ def fetch_pkg_list(
         csp_link = build_record.current_source_publication_link
         spph = SPPH(
             csp_link,
-            launchpad=launchpad,
+            launchpad=ctx.launchpad,
             source_package_class=SourcePackage,
-            ubuntu=ubuntu,
-            find_tagged_bugs=find_tagged_bugs,
-            packagesets=packagesets,
-            packagesets_ftbfs=packagesets_ftbfs,
-            teams=teams,
-            teams_ftbfs=teams_ftbfs,
-            components=components,
+            ubuntu=ctx.ubuntu,
+            find_tagged_bugs=ctx.find_tagged_bugs,
+            packagesets=accumulators.packagesets,
+            packagesets_ftbfs=accumulators.packagesets_ftbfs,
+            teams=accumulators.teams,
+            teams_ftbfs=accumulators.teams_ftbfs,
+            components=accumulators.components,
         )
 
         # Check current publication status
@@ -128,20 +139,20 @@ def fetch_pkg_list(
                 spph._lp.source_package_name, spph._lp.source_package_version, spph.pocket
             )
 
-        if not spph.current and verbose:
+        if not spph.current and ctx.verbose:
             print("    superseded", file=sys.stderr)
 
         # Check for regressions
         no_regression = False
-        if main_archive:
+        if ctx.main_archive:
             main_build_state = fetcher.get_main_archive_build_state(
                 spph._lp.source_package_name,
                 spph._lp.source_package_version,
                 build_record.arch_tag,
             )
             if main_build_state and main_build_state != "Successfully built":
-                if regressions_only:
-                    if verbose:
+                if ctx.regressions_only:
+                    if ctx.verbose:
                         print(f"  Skipping {build_record.source_package_name}", file=sys.stderr)
                     progress.mark("skipped")
                     continue
@@ -150,7 +161,7 @@ def fetch_pkg_list(
 
         # Check if never built before
         never_built = True
-        if ref_series:
+        if ctx.ref_series:
             ref_build = fetcher.find_reference_build(
                 build_record.source_package_name,
                 build_record.arch_tag,
@@ -160,13 +171,13 @@ def fetch_pkg_list(
                 never_built = False
 
         if never_built:
-            if verbose:
+            if ctx.verbose:
                 print("    never built before", file=sys.stderr)
             progress.mark("kept")
             progress.mark("never-built")
         else:
             progress.mark("kept")
 
-        spph.addBuildLog(build_record, never_built, no_regression, api_version)
+        spph.addBuildLog(build_record, never_built, no_regression, ctx.api_version)
 
     progress.finish()

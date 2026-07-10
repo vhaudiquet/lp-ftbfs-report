@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from lp_ftbfs_report.data_fetcher import fetch_pkg_list
+from lp_ftbfs_report.data_fetcher import FetchContext, ReportAccumulators, fetch_pkg_list
 from lp_ftbfs_report.fetchers import DummyFetcher
 from lp_ftbfs_report.models import SPPH, PersonTeam, SourcePackage
 
@@ -21,7 +21,10 @@ ARCHES = ["amd64", "arm64"]
 
 
 def _build_context(sample_fixture_path: str) -> tuple:
-    """Build a fetcher + mock launchpad and the accumulator dicts main() uses."""
+    """Build a fetcher + mock launchpad, the run context and accumulators.
+
+    Mirrors build_status.main()'s dummy-mode wiring.
+    """
     fetcher = DummyFetcher(sample_fixture_path, api_version="devel")
     launchpad = fetcher.create_mock_launchpad()
     ubuntu = launchpad  # mirrors build_status.py dummy-mode wiring
@@ -36,16 +39,25 @@ def _build_context(sample_fixture_path: str) -> tuple:
     packagesets_ftbfs: dict[str, list[SourcePackage]] = {ps: [] for ps in packagesets}
     teams = fetcher.get_teams()
     teams_ftbfs: dict[str, list[SourcePackage]] = {team: [] for team in teams}
-    return (
-        fetcher,
-        launchpad,
-        ubuntu,
-        components,
-        packagesets,
-        packagesets_ftbfs,
-        teams,
-        teams_ftbfs,
+
+    ctx = FetchContext(
+        launchpad=launchpad,
+        ubuntu=ubuntu,
+        main_archive=None,
+        ref_series=None,
+        find_tagged_bugs="ftbfs",
+        api_version="devel",
+        verbose=False,
+        regressions_only=False,
     )
+    accumulators = ReportAccumulators(
+        components=components,
+        packagesets=packagesets,
+        packagesets_ftbfs=packagesets_ftbfs,
+        teams=teams,
+        teams_ftbfs=teams_ftbfs,
+    )
+    return fetcher, ctx, accumulators, components, packagesets_ftbfs, teams_ftbfs
 
 
 def _names(pkgs: list[SourcePackage]) -> list[str]:
@@ -75,44 +87,25 @@ def test_fetch_pkg_list_dedups_shared_publication_and_populates_accumulators(
     SPPH) carrying two build logs (amd64 + arm64), rather than two separate
     versions each with one log.
     """
-    (
-        fetcher,
-        launchpad,
-        ubuntu,
-        components,
-        packagesets,
-        packagesets_ftbfs,
-        teams,
-        teams_ftbfs,
-    ) = _build_context(sample_fixture_path)
+    fetcher, ctx, accumulators, components, packagesets_ftbfs, teams_ftbfs = _build_context(
+        sample_fixture_path
+    )
 
     # "Failed to build": example-pkg (amd64, arm64) + always-fail-pkg (amd64)
     fetch_pkg_list(
         state="Failed to build",
-        launchpad=launchpad,
-        ubuntu=ubuntu,
-        find_tagged_bugs="ftbfs",
-        packagesets=packagesets,
-        packagesets_ftbfs=packagesets_ftbfs,
-        teams=teams,
-        teams_ftbfs=teams_ftbfs,
-        components=components,
         arch_list=ARCHES,
         fetcher=fetcher,
+        accumulators=accumulators,
+        ctx=ctx,
     )
     # "Dependency wait": depwait-pkg (amd64), component main
     fetch_pkg_list(
         state="Dependency wait",
-        launchpad=launchpad,
-        ubuntu=ubuntu,
-        find_tagged_bugs="ftbfs",
-        packagesets=packagesets,
-        packagesets_ftbfs=packagesets_ftbfs,
-        teams=teams,
-        teams_ftbfs=teams_ftbfs,
-        components=components,
         arch_list=ARCHES,
         fetcher=fetcher,
+        accumulators=accumulators,
+        ctx=ctx,
     )
 
     # --- components populated correctly ---
@@ -152,42 +145,23 @@ def test_personteam_is_cached_and_shared_across_publications(sample_fixture_path
     The three sourcepubs in the fixture all point at the same creator link,
     so PersonTeam.__new__ must return the same cached object for each SPPH.
     """
-    (
-        fetcher,
-        launchpad,
-        ubuntu,
-        components,
-        packagesets,
-        packagesets_ftbfs,
-        teams,
-        teams_ftbfs,
-    ) = _build_context(sample_fixture_path)
+    fetcher, ctx, accumulators, _components, _packagesets_ftbfs, _teams_ftbfs = _build_context(
+        sample_fixture_path
+    )
 
     fetch_pkg_list(
         state="Failed to build",
-        launchpad=launchpad,
-        ubuntu=ubuntu,
-        find_tagged_bugs="ftbfs",
-        packagesets=packagesets,
-        packagesets_ftbfs=packagesets_ftbfs,
-        teams=teams,
-        teams_ftbfs=teams_ftbfs,
-        components=components,
         arch_list=ARCHES,
         fetcher=fetcher,
+        accumulators=accumulators,
+        ctx=ctx,
     )
     fetch_pkg_list(
         state="Dependency wait",
-        launchpad=launchpad,
-        ubuntu=ubuntu,
-        find_tagged_bugs="ftbfs",
-        packagesets=packagesets,
-        packagesets_ftbfs=packagesets_ftbfs,
-        teams=teams,
-        teams_ftbfs=teams_ftbfs,
-        components=components,
         arch_list=ARCHES,
         fetcher=fetcher,
+        accumulators=accumulators,
+        ctx=ctx,
     )
 
     spph1 = SPPH._cache["https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1"]
@@ -206,29 +180,16 @@ def test_caches_are_cleared_between_runs(sample_fixture_path):
     This mirrors the start-of-run cache reset in build_status.main() and is
     the contract any future cache refactor must preserve.
     """
-    (
-        fetcher,
-        launchpad,
-        ubuntu,
-        components,
-        packagesets,
-        packagesets_ftbfs,
-        teams,
-        teams_ftbfs,
-    ) = _build_context(sample_fixture_path)
+    fetcher, ctx, accumulators, _components, _packagesets_ftbfs, _teams_ftbfs = _build_context(
+        sample_fixture_path
+    )
 
     fetch_pkg_list(
         state="Failed to build",
-        launchpad=launchpad,
-        ubuntu=ubuntu,
-        find_tagged_bugs="ftbfs",
-        packagesets=packagesets,
-        packagesets_ftbfs=packagesets_ftbfs,
-        teams=teams,
-        teams_ftbfs=teams_ftbfs,
-        components=components,
         arch_list=ARCHES,
         fetcher=fetcher,
+        accumulators=accumulators,
+        ctx=ctx,
     )
     assert SPPH._cache  # populated during the run
     assert SourcePackage._cache
