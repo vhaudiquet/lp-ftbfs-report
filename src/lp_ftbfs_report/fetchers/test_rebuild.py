@@ -34,6 +34,8 @@ class TestRebuildFetcher(BaseFetcher):
     reference series comparison, and updates archive integration.
     """
 
+    __test__ = False  # not a pytest test class despite the Test* name
+
     def __init__(
         self,
         launchpad: Any,
