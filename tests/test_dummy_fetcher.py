@@ -70,6 +70,59 @@ def test_check_current_publication(sample_fixture_path):
     assert fetcher.check_current_publication("depwait-pkg", "2.0-1ubuntu1")
 
 
+def test_check_current_publication_superseded(tmp_path):
+    """An is_current: false build marks the publication as superseded.
+
+    This is the fixture-level handle for the superseded-packages path: a build
+    marked is_current: false flows through check_current_publication ->
+    SPPH.current = False, so the package lands in the superseded section.
+    """
+    import json
+
+    fixture = tmp_path / "superseded.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "archive": {"name": "t", "displayname": "t"},
+                "series": {"name": "oracular", "fullseriesname": "Ubuntu Oracular"},
+                "builds": [
+                    {
+                        "source_package_name": "old-pkg",
+                        "source_package_version": "1.0-1",
+                        "arch_tag": "amd64",
+                        "buildstate": "Failed to build",
+                        "datebuilt": "2026-04-01T12:00:00+00:00",
+                        "current_source_publication_link": "https://lp/pub/1",
+                        "is_current": False,
+                    },
+                    {
+                        "source_package_name": "cur-pkg",
+                        "source_package_version": "2.0-1",
+                        "arch_tag": "amd64",
+                        "buildstate": "Failed to build",
+                        "datebuilt": "2026-04-01T12:00:00+00:00",
+                        "current_source_publication_link": "https://lp/pub/2",
+                        "is_current": True,
+                    },
+                ],
+                "publications": {
+                    "https://lp/pub/1": {
+                        "source_package_name": "old-pkg",
+                        "source_package_version": "1.0-1",
+                    },
+                    "https://lp/pub/2": {
+                        "source_package_name": "cur-pkg",
+                        "source_package_version": "2.0-1",
+                    },
+                },
+            }
+        )
+    )
+    fetcher = DummyFetcher(str(fixture))
+    assert fetcher.check_current_publication("old-pkg", "1.0-1") is False
+    assert fetcher.check_current_publication("cur-pkg", "2.0-1") is True
+
+
 def test_find_reference_build(sample_fixture_path):
     """Test finding reference builds."""
     fetcher = DummyFetcher(sample_fixture_path)
