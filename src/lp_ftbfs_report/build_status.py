@@ -30,7 +30,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-import requests
 from launchpadlib.errors import HTTPError
 from launchpadlib.launchpad import Launchpad
 
@@ -86,8 +85,9 @@ def setup_fetcher_and_context(
         api_version: API version string
 
     Returns:
-        Tuple of (fetcher, updates_fetcher, archive, series, launchpad, ubuntu,
-                 main_archive, main_series, updates_archive, ref_series, arch_args)
+        A :class:`ReportSetup` with the fetcher, archives, series and arch
+        args for the run, or ``None`` on a setup error (already reported
+        to stderr).
     """
     main_archive = None
     main_series = None
@@ -379,25 +379,12 @@ def main() -> None:
     # packagesets for this series
     packagesets: dict[str, list[str]] = {}
     packagesets_ftbfs: dict[str, list[SourcePackage]] = {}
-    if fetcher:
-        # Use fetcher to get packagesets
-        packagesets = fetcher.get_packagesets()
-        for ps_name in packagesets:
-            packagesets_ftbfs[ps_name] = []
-    else:
-        # Load from Launchpad
-        for ps in launchpad.packagesets:
-            if ps.distroseries_link == series.self_link:
-                packagesets[ps.name] = ps.getSourcesIncluded(direct_inclusion=False)
-                packagesets_ftbfs[ps.name] = []
+    packagesets = fetcher.get_packagesets()
+    for ps_name in packagesets:
+        packagesets_ftbfs[ps_name] = []
 
     # Get teams
-    if fetcher:
-        teams = fetcher.get_teams()
-    else:
-        teams = requests.get(
-            "https://people.canonical.com/~ubuntu-archive/package-team-mapping.json"
-        ).json()
+    teams = fetcher.get_teams()
 
     # Per team list of FTBFS
     teams_ftbfs: dict[str, list[SourcePackage]] = {team: [] for team in teams}
