@@ -1,11 +1,18 @@
-"""Tests for the SPPH.BuildLog model (buildstate mapping + tooltip)."""
+"""Tests for the SPPH.BuildLog and PersonTeam models."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pytest
+
 from lp_ftbfs_report.fetchers.base import BuildRecord
-from lp_ftbfs_report.models import SPPH
+from lp_ftbfs_report.models import SPPH, PersonTeam
+
+try:
+    from launchpadlib.errors import HTTPError
+except ImportError:  # pragma: no cover
+    HTTPError = None  # type: ignore[assignment]
 
 
 def _record(
@@ -90,3 +97,80 @@ def test_buildlog_never_built_takes_precedence_over_no_regression():
     )
     log = SPPH.BuildLog(build, never_built=True, no_regression=True)
     assert log.buildstate == "NOREGRFTBFS"
+
+
+# --------------------------------------------------------------------------- #
+# PersonTeam caching
+# --------------------------------------------------------------------------- #
+
+
+class _MockResponse:
+    def __init__(self, status: int):
+        self.status = status
+
+
+class _MockLaunchpad:
+    """Minimal Launchpad stub: load(url) returns objects or raises HTTPError."""
+
+    def __init__(self, objects: dict[str, object], missing_status: int = 404):
+        self._objects = objects
+        self._missing_status = missing_status
+
+    def load(self, url: str):  # noqa: ARG002
+        if url in self._objects:
+            return self._objects[url]
+        raise HTTPError(_MockResponse(self._missing_status), b"not found")
+
+
+class _PersonObj:
+    def __init__(self, display_name: str, name: str):
+        self.display_name = display_name
+        self.name = name
+
+
+@pytest.fixture(autouse=True)
+def _clear_personteam_cache():
+    PersonTeam.clear()
+    yield
+    PersonTeam.clear()
+
+
+def test_personteam_caches_and_dedups_by_link():
+    """Two lookups of the same link return the same cached PersonTeam."""
+    lp = _MockLaunchpad({"https://lp/~alice": _PersonObj("Alice", "alice")})
+    first = PersonTeam("https://lp/~alice", launchpad=lp)
+    second = PersonTeam("https://lp/~alice", launchpad=lp)
+    assert first is not None
+    assert first is second
+    assert first.name == "alice"
+
+
+def test_personteam_404_caches_none():
+    """A 404 is cached as None so the link is not re-fetched each time."""
+    lp = _MockLaunchpad({}, missing_status=404)
+    assert PersonTeam("https://lp/~ghost", launchpad=lp) is None
+    # Second lookup must hit the cache (load() would raise again if it didn't).
+    assert PersonTeam("https://lp/~ghost", launchpad=lp) is None
+
+
+def test_personteam_non_404_http_error_propagates():
+    """A non-(404/410) HTTPError must propagate, not be swallowed."""
+    lp = _MockLaunchpad({}, missing_status=500)
+    with pytest.raises(HTTPError):
+        PersonTeam("https://lp/~broken", launchpad=lp)
+
+
+def test_personteam_keyerror_propagates():
+    """A KeyError from load()/attr access must not be swallowed into None.
+
+    Previously the inner `except KeyError: return None` masked any KeyError
+    raised anywhere in the lookup as a missing person, silently corrupting the
+    Changed-By tooltip. It must now propagate so bugs surface.
+    """
+
+    class _RaisesKeyError:
+        def load(self, url):  # noqa: ARG002
+            raise KeyError("unexpected")
+
+    with pytest.raises(KeyError):
+        PersonTeam("https://lp/~bad", launchpad=_RaisesKeyError())

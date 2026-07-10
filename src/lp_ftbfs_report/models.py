@@ -46,8 +46,6 @@ class PersonTeam:
                 personteam.display_name = lp_object.display_name
                 personteam.name = lp_object.name
 
-            except KeyError:
-                return None
             except HTTPError as e:
                 if e.response.status in (404, 410):
                     personteam = None
