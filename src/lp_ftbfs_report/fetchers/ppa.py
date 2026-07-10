@@ -106,8 +106,13 @@ class PPAFetcher(BaseFetcher):
         # PPAs use archive.getBuildRecords
         buildlist = self.ppa.getBuildRecords(build_state=state)
 
-        # lazr Collections expose total_size but not __len__; see TestRebuildFetcher.
-        total = getattr(buildlist, "total_size", None)
+        # lazr Collections support __len__ (which unwraps a ScalarValue
+        # total_size to an int); fall back to None only if unavailable.
+        # See TestRebuildFetcher for the full rationale.
+        try:
+            total = len(buildlist)
+        except TypeError:
+            total = None
 
         arch_set = set(arch_list)
         verbose = self.verbose

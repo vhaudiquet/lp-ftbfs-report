@@ -21,12 +21,37 @@ from lp_ftbfs_report.fetchers.test_rebuild import TestRebuildFetcher
 # --------------------------------------------------------------------------- #
 
 
+class _ScalarTotal:
+    """Stand-in for lazr.restfulclient ScalarValue: .value holds the int.
+
+    lazr Collection.total_size can be one of these (when the size is linked,
+    not inlined in the representation) rather than a plain int. lazr's
+    Collection.__len__ unwraps it; the fetcher must do the same.
+    """
+
+    def __init__(self, value: int):
+        self.value = value
+
+
 class FakeCollection(list):
-    """A lazr-like collection: iterable + .total_size."""
+    """A lazr-like collection: iterable + .total_size + __len__.
+
+    Mirrors lazr.restfulclient.resource.Collection: total_size may be an int
+    or a _ScalarTotal wrapper, and __len__ unwraps to a plain int (raising
+    TypeError when size is unavailable).
+    """
 
     def __init__(self, items=(), total_size=None):
         super().__init__(items)
-        self.total_size = len(self) if total_size is None else total_size
+        self.total_size = len(items) if total_size is None else total_size
+
+    def __len__(self):
+        total_size = self.total_size
+        if isinstance(total_size, int):
+            return total_size
+        if isinstance(total_size, _ScalarTotal):
+            return total_size.value
+        raise TypeError("collection size is not available")
 
 
 def _build(
@@ -146,6 +171,33 @@ def test_get_build_records_total_size_from_collection():
     fetcher.archive.getBuildRecords = lambda build_state: coll  # type: ignore[assignment]  # noqa: ARG005
     records = fetcher.get_build_records("Failed to build", ["amd64"])
     assert records.total == 42
+    assert isinstance(records.total, int)
+
+
+def test_get_build_records_total_unwraps_scalar_total_size():
+    """A lazr ScalarValue-wrapped total_size yields a plain int total.
+
+    lazr Collection.total_size can be a ScalarValue (with .value) rather than
+    an int; Collection.__len__ unwraps it. The fetcher must go through len()
+    (or otherwise unwrap) so Progress/BuildRecordSet get an int, not the
+    wrapper — otherwise `current / total` raises TypeError at render time.
+    """
+    coll = FakeCollection([_build()], total_size=_ScalarTotal(7))
+    fetcher = _make_fetcher(archive=_archive(build_records=[_build()]))
+    fetcher.archive.getBuildRecords = lambda build_state: coll  # type: ignore[assignment]  # noqa: ARG005
+    records = fetcher.get_build_records("Failed to build", ["amd64"])
+    assert records.total == 7
+    assert isinstance(records.total, int)
+
+
+def test_get_build_records_total_none_when_size_unavailable():
+    """If the collection's size is unavailable (len raises TypeError), total
+    falls back to None ("unknown count") rather than crashing."""
+    coll = FakeCollection([_build()], total_size=object())  # not int / _ScalarTotal
+    fetcher = _make_fetcher(archive=_archive(build_records=[_build()]))
+    fetcher.archive.getBuildRecords = lambda build_state: coll  # type: ignore[assignment]  # noqa: ARG005
+    records = fetcher.get_build_records("Failed to build", ["amd64"])
+    assert records.total is None
 
 
 def test_get_build_records_primary_archive_uses_series_getBuildRecords():
@@ -159,7 +211,6 @@ def test_get_build_records_primary_archive_uses_series_getBuildRecords():
 
 def test_get_build_records_maps_buildrecord_fields():
     """The yielded BuildRecord carries the build's fields verbatim."""
-    when = object.__new__.__self__  # placeholder; use a real datetime below
     from datetime import datetime, timezone
 
     when = datetime(2026, 4, 1, 12, 0, 0, tzinfo=timezone.utc)
