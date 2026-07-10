@@ -355,15 +355,6 @@ class TestRebuildFetcher(BaseFetcher):
 
         return results.get(arch)
 
-    def load_launchpad_object(self, link: str) -> Any:
-        """Load a Launchpad object by URL."""
-        return self.launchpad.load(link)
-
-    def search_bugs(self, source_name: str, tag: str) -> list[Any]:
-        """Search for bugs tagged with a specific tag."""
-        ts = self.ubuntu.getSourcePackage(name=source_name).searchTasks(tags=tag)
-        return [t.bug for t in ts]
-
     def check_update_archive_success(self, source_name: str, arch: str) -> bool:
         """Check if build succeeded in updates archive.
 

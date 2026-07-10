@@ -15,7 +15,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 
 @dataclass
@@ -199,32 +198,5 @@ class BaseFetcher(ABC):
 
         Returns:
             Build state string if found, None otherwise
-        """
-        pass
-
-    @abstractmethod
-    def load_launchpad_object(self, link: str) -> Any:
-        """Load a Launchpad object by URL.
-
-        This is used by models.py for lazy loading.
-
-        Args:
-            link: Launchpad API URL
-
-        Returns:
-            Launchpad object
-        """
-        pass
-
-    @abstractmethod
-    def search_bugs(self, source_name: str, tag: str) -> list[Any]:
-        """Search for bugs tagged with a specific tag.
-
-        Args:
-            source_name: Source package name
-            tag: Bug tag to search for (e.g., "ftbfs")
-
-        Returns:
-            List of bug objects
         """
         pass

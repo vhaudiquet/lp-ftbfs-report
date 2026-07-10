@@ -15,9 +15,6 @@ import sys
 from collections.abc import Callable, Iterator
 from typing import Any
 
-import requests
-from launchpadlib.errors import HTTPError
-
 from lp_ftbfs_report.fetchers.base import (
     ArchiveInfo,
     BaseFetcher,
@@ -248,22 +245,6 @@ class PPAFetcher(BaseFetcher):
         PPAs don't do regression checking against main archive.
         """
         return None
-
-    def load_launchpad_object(self, link: str) -> Any:
-        """Load a Launchpad object by URL."""
-        return self.launchpad.load(link)
-
-    def search_bugs(self, source_name: str, tag: str) -> list[Any]:
-        """Search for bugs tagged with a specific tag.
-
-        Search in Ubuntu (not PPA-specific).
-        """
-        try:
-            ts = self.ubuntu.getSourcePackage(name=source_name).searchTasks(tags=tag)
-            return [t.bug for t in ts]
-        except (HTTPError, requests.RequestException) as e:
-            print(f"Warning: Could not search bugs for {source_name}: {e}", file=sys.stderr)
-            return []
 
 
 def parse_ppa_spec(ppa_spec: str) -> tuple[str, str]:
