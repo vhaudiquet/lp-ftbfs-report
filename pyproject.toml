@@ -77,8 +77,8 @@ dev = [
 ]
 
 [tool.poe.tasks]
-lint = "ruff check src/"
-format = "ruff format src/"
+lint = "ruff check src/ tests/"
+format = "ruff format src/ tests/"
 typecheck = "ty check src/"
 test = "pytest tests/ -v"
 check = ["lint", "typecheck", "test"]
