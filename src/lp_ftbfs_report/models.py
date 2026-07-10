@@ -187,6 +187,8 @@ class SPPH:
     """Source Package Publishing History wrapper."""
 
     _lp: Any
+    source_package_name: str
+    source_package_version: str
     logs: dict[str, SPPH.BuildLog]
     version: str
     pocket: str
@@ -215,6 +217,8 @@ class SPPH:
         # fill the new SPPH object with data
         lp_object = launchpad.load(spph_link)
         spph._lp = lp_object
+        spph.source_package_name = lp_object.source_package_name
+        spph.source_package_version = lp_object.source_package_version
         spph.logs = {}
         spph.version = lp_object.source_package_version
         spph.pocket = lp_object.pocket

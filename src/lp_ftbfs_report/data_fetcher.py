@@ -138,7 +138,7 @@ def fetch_pkg_list(
         # Check current publication status
         if spph.current is None:
             spph.current = fetcher.check_current_publication(
-                spph._lp.source_package_name, spph._lp.source_package_version, spph.pocket
+                spph.source_package_name, spph.source_package_version, spph.pocket
             )
 
         if not spph.current and ctx.verbose:
@@ -148,8 +148,8 @@ def fetch_pkg_list(
         no_regression = False
         if ctx.main_archive:
             main_build_state = fetcher.get_main_archive_build_state(
-                spph._lp.source_package_name,
-                spph._lp.source_package_version,
+                spph.source_package_name,
+                spph.source_package_version,
                 build_record.arch_tag,
             )
             if main_build_state and main_build_state != "Successfully built":
