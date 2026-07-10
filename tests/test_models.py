@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import pytest
 
 from lp_ftbfs_report.fetchers.base import BuildRecord
-from lp_ftbfs_report.models import SPPH, PersonTeam
+from lp_ftbfs_report.models import SPPH, ModelCaches, PersonTeam
 
 try:
     from launchpadlib.errors import HTTPError
@@ -129,35 +129,42 @@ class _PersonObj:
 
 
 @pytest.fixture(autouse=True)
-def _clear_personteam_cache():
-    PersonTeam.clear()
+def _fresh_caches():
+    """Each PersonTeam test gets its own empty ModelCaches."""
     yield
-    PersonTeam.clear()
 
 
 def test_personteam_caches_and_dedups_by_link():
     """Two lookups of the same link return the same cached PersonTeam."""
+    caches = ModelCaches()
     lp = _MockLaunchpad({"https://lp/~alice": _PersonObj("Alice", "alice")})
-    first = PersonTeam("https://lp/~alice", launchpad=lp)
-    second = PersonTeam("https://lp/~alice", launchpad=lp)
+    first = PersonTeam("https://lp/~alice", caches=caches, launchpad=lp)
+    second = PersonTeam("https://lp/~alice", caches=caches, launchpad=lp)
     assert first is not None
     assert first is second
     assert first.name == "alice"
+    # The cache holds the resolved object under the link.
+    assert caches.persons["https://lp/~alice"] is first
 
 
 def test_personteam_404_caches_none():
     """A 404 is cached as None so the link is not re-fetched each time."""
+    caches = ModelCaches()
     lp = _MockLaunchpad({}, missing_status=404)
-    assert PersonTeam("https://lp/~ghost", launchpad=lp) is None
+    assert PersonTeam("https://lp/~ghost", caches=caches, launchpad=lp) is None
     # Second lookup must hit the cache (load() would raise again if it didn't).
-    assert PersonTeam("https://lp/~ghost", launchpad=lp) is None
+    assert PersonTeam("https://lp/~ghost", caches=caches, launchpad=lp) is None
+    assert caches.persons["https://lp/~ghost"] is None
 
 
 def test_personteam_non_404_http_error_propagates():
     """A non-(404/410) HTTPError must propagate, not be swallowed."""
+    caches = ModelCaches()
     lp = _MockLaunchpad({}, missing_status=500)
     with pytest.raises(HTTPError):
-        PersonTeam("https://lp/~broken", launchpad=lp)
+        PersonTeam("https://lp/~broken", caches=caches, launchpad=lp)
+    # Nothing cached when the error propagated.
+    assert "https://lp/~broken" not in caches.persons
 
 
 def test_personteam_keyerror_propagates():
@@ -172,5 +179,6 @@ def test_personteam_keyerror_propagates():
         def load(self, url):  # noqa: ARG002
             raise KeyError("unexpected")
 
+    caches = ModelCaches()
     with pytest.raises(KeyError):
-        PersonTeam("https://lp/~bad", launchpad=_RaisesKeyError())
+        PersonTeam("https://lp/~bad", caches=caches, launchpad=_RaisesKeyError())

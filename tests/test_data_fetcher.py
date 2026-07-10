@@ -11,11 +11,9 @@ preserve this behaviour.
 
 from __future__ import annotations
 
-import pytest
-
 from lp_ftbfs_report.data_fetcher import FetchContext, ReportAccumulators, fetch_pkg_list
 from lp_ftbfs_report.fetchers import DummyFetcher
-from lp_ftbfs_report.models import SPPH, PersonTeam, SourcePackage
+from lp_ftbfs_report.models import ModelCaches, SourcePackage
 
 ARCHES = ["amd64", "arm64"]
 
@@ -46,6 +44,7 @@ def _build_context(sample_fixture_path: str) -> tuple:
         main_archive=None,
         ref_series=None,
         find_tagged_bugs="ftbfs",
+        caches=ModelCaches(),
         api_version="devel",
         verbose=False,
         regressions_only=False,
@@ -62,18 +61,6 @@ def _build_context(sample_fixture_path: str) -> tuple:
 
 def _names(pkgs: list[SourcePackage]) -> list[str]:
     return sorted(p.name for p in pkgs)
-
-
-@pytest.fixture(autouse=True)
-def _clear_model_caches():
-    """Ensure each test starts with empty model caches."""
-    PersonTeam.clear()
-    SourcePackage.clear()
-    SPPH.clear()
-    yield
-    PersonTeam.clear()
-    SourcePackage.clear()
-    SPPH.clear()
 
 
 def test_fetch_pkg_list_dedups_shared_publication_and_populates_accumulators(
@@ -121,11 +108,11 @@ def test_fetch_pkg_list_dedups_shared_publication_and_populates_accumulators(
     assert set(spph.logs.keys()) == {"amd64", "arm64"}
     # The cached SPPH for that publication link is the very same object.
     pub_link = "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1"
-    assert SPPH._cache[pub_link] is spph
+    assert ctx.caches.spphs[pub_link] is spph
 
     # --- SourcePackage dedup: one SourcePackage per name, cached ---
-    assert SourcePackage._cache["example-pkg"] is example_pkg
-    assert SourcePackage._cache["depwait-pkg"] is components["main"][0]
+    assert ctx.caches.sources["example-pkg"] is example_pkg
+    assert ctx.caches.sources["depwait-pkg"] is components["main"][0]
 
     # --- bug loading wired through the mock launchpad ---
     example_bugs = [b.id for b in example_pkg.tagged_bugs]
@@ -164,14 +151,14 @@ def test_personteam_is_cached_and_shared_across_publications(sample_fixture_path
         ctx=ctx,
     )
 
-    spph1 = SPPH._cache["https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1"]
-    spph2 = SPPH._cache["https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2"]
-    spph3 = SPPH._cache["https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/3"]
+    spph1 = ctx.caches.spphs["https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1"]
+    spph2 = ctx.caches.spphs["https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2"]
+    spph3 = ctx.caches.spphs["https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/3"]
     # One PersonTeam cached for the shared creator link, referenced by all SPPHs.
     assert spph1.changed_by is spph2.changed_by
     assert spph2.changed_by is spph3.changed_by
     creator_link = "https://api.launchpad.net/devel/~test-user"
-    assert PersonTeam._cache[creator_link] is spph1.changed_by
+    assert ctx.caches.persons[creator_link] is spph1.changed_by
 
 
 def test_caches_are_cleared_between_runs(sample_fixture_path):
@@ -191,13 +178,11 @@ def test_caches_are_cleared_between_runs(sample_fixture_path):
         accumulators=accumulators,
         ctx=ctx,
     )
-    assert SPPH._cache  # populated during the run
-    assert SourcePackage._cache
+    assert ctx.caches.spphs  # populated during the run
+    assert ctx.caches.sources
 
-    PersonTeam.clear()
-    SourcePackage.clear()
-    SPPH.clear()
+    ctx.caches.clear()
 
-    assert SPPH._cache == {}
-    assert SourcePackage._cache == {}
-    assert PersonTeam._cache == {}
+    assert ctx.caches.spphs == {}
+    assert ctx.caches.sources == {}
+    assert ctx.caches.persons == {}

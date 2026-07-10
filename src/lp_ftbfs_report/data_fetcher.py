@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from lp_ftbfs_report.fetchers import BaseFetcher
-from lp_ftbfs_report.models import SPPH, SourcePackage
+from lp_ftbfs_report.models import SPPH, ModelCaches, SourcePackage
 from lp_ftbfs_report.progress import Progress
 
 
@@ -49,6 +49,7 @@ class FetchContext:
     main_archive: Any
     ref_series: Any
     find_tagged_bugs: str | None
+    caches: ModelCaches
     api_version: str = "devel"
     verbose: bool = False
     regressions_only: bool = False
@@ -122,6 +123,7 @@ def fetch_pkg_list(
         csp_link = build_record.current_source_publication_link
         spph = SPPH(
             csp_link,
+            caches=ctx.caches,
             launchpad=ctx.launchpad,
             source_package_class=SourcePackage,
             ubuntu=ctx.ubuntu,

@@ -43,7 +43,7 @@ from lp_ftbfs_report.fetchers import (
     parse_ppa_spec,
 )
 from lp_ftbfs_report.html_generator import generate_page
-from lp_ftbfs_report.models import SPPH, PersonTeam, SourcePackage
+from lp_ftbfs_report.models import ModelCaches, SourcePackage
 
 # Configuration constants
 LP_SERVICE = "production"
@@ -364,10 +364,9 @@ def main() -> None:
     # Use the archive and series directly (no need for a loop)
     print(f"Generating FTBFS for {series.fullseriesname}", file=sys.stderr)
 
-    # clear all caches
-    PersonTeam.clear()
-    SourcePackage.clear()
-    SPPH.clear()
+    # Per-run model caches, held as an instance rather than module globals so
+    # the pipeline is reusable in-process without cross-run contamination.
+    caches = ModelCaches()
     # list of SourcePackages for each component
     components: dict[str, list[SourcePackage]] = {
         "main": [],
@@ -397,6 +396,7 @@ def main() -> None:
         main_archive=main_archive,
         ref_series=ref_series,
         find_tagged_bugs=FIND_TAGGED_BUGS,
+        caches=caches,
         api_version=API_VERSION,
         verbose=options.verbose,
         regressions_only=options.regressions_only,

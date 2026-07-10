@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
 import debian.debian_support
@@ -27,40 +28,60 @@ def translate_api_web(self_url: str | None, api_version: str = "devel") -> str:
         return self_url.replace("api.", "").replace(f"{api_version}/", "")
 
 
+@dataclass
+class ModelCaches:
+    """Per-run caches for the PersonTeam / SourcePackage / SPPH models.
+
+    Held as an instance (threaded through the constructors via the ``caches``
+    keyword argument) rather than as class-level module globals, so a process
+    can run the report pipeline multiple times or embed the library without
+    cross-run contamination. A fresh instance is empty by construction.
+    """
+
+    persons: dict[str, PersonTeam | None] = field(default_factory=dict)
+    sources: dict[str, SourcePackage] = field(default_factory=dict)
+    spphs: dict[str, SPPH] = field(default_factory=dict)
+
+    def clear(self) -> None:
+        """Empty all three caches."""
+        self.persons.clear()
+        self.sources.clear()
+        self.spphs.clear()
+
+
 class PersonTeam:
     """Represents a person or team in Launchpad."""
 
-    _cache: dict[str, PersonTeam | None] = {}
     display_name: str
     name: str
 
-    def __new__(cls, personteam_link: str, launchpad: Any = None) -> PersonTeam | None:
+    def __new__(
+        cls,
+        personteam_link: str,
+        *,
+        caches: ModelCaches,
+        launchpad: Any = None,
+    ) -> PersonTeam | None:
+        if personteam_link in caches.persons:
+            return caches.persons[personteam_link]
         try:
-            return cls._cache[personteam_link]
-        except KeyError:
-            try:
-                personteam = super().__new__(cls)
+            personteam = super().__new__(cls)
 
-                # fill the new PersonTeam object with data
-                lp_object = launchpad.load(personteam_link)
-                personteam.display_name = lp_object.display_name
-                personteam.name = lp_object.name
+            # fill the new PersonTeam object with data
+            lp_object = launchpad.load(personteam_link)
+            personteam.display_name = lp_object.display_name
+            personteam.name = lp_object.name
 
-            except HTTPError as e:
-                if e.response.status in (404, 410):
-                    personteam = None
-                else:
-                    raise
+        except HTTPError as e:
+            if e.response.status in (404, 410):
+                personteam = None
+            else:
+                raise
 
-            # add to cache
-            cls._cache[personteam_link] = personteam
+        # add to cache
+        caches.persons[personteam_link] = personteam
 
-            return personteam
-
-    @classmethod
-    def clear(cls) -> None:
-        """Clear the cache."""
-        cls._cache.clear()
+        return personteam
 
     def __str__(self) -> str:
         return f"{self.display_name} ({self.name})"
@@ -69,10 +90,9 @@ class PersonTeam:
 class SourcePackage:
     """Represents a source package with FTBFS information."""
 
-    _cache: dict[str, SourcePackage] = {}
     name: str
     url: str
-    versions: VersionList
+    versions: SourcePackage.VersionList
     tagged_bugs: list[Any]
     packagesets: set[str]
     teams: set[str]
@@ -87,6 +107,8 @@ class SourcePackage:
     def __new__(
         cls,
         spph: Any,
+        *,
+        caches: ModelCaches,
         ubuntu: Any = None,
         find_tagged_bugs: str | None = None,
         packagesets: dict[str, list[str]] | None = None,
@@ -95,49 +117,43 @@ class SourcePackage:
         teams_ftbfs: dict[str, list[SourcePackage]] | None = None,
         components: dict[str, list[SourcePackage]] | None = None,
     ) -> SourcePackage:
-        try:
-            return cls._cache[spph.source_package_name]
-        except KeyError:
-            srcpkg = super().__new__(cls)
+        if spph.source_package_name in caches.sources:
+            return caches.sources[spph.source_package_name]
+        srcpkg = super().__new__(cls)
 
-            # fill the new SourcePackage object with data
-            srcpkg.name = spph.source_package_name
-            srcpkg.url = f"https://launchpad.net/ubuntu/+source/{srcpkg.name}"
-            srcpkg.versions = cls.VersionList()
-            if find_tagged_bugs is None:
-                srcpkg.tagged_bugs = []
-            else:
-                ts = ubuntu.getSourcePackage(name=srcpkg.name).searchTasks(tags=find_tagged_bugs)
-                srcpkg.tagged_bugs = [t.bug for t in ts]
-            srcpkg.packagesets = {
-                ps
-                for (ps, srcpkglist) in list((packagesets or {}).items())
-                if spph.source_package_name in srcpkglist
-            }
-            if components and spph.component_name in components:
-                components[spph.component_name].append(srcpkg)
-            for ps in srcpkg.packagesets:
-                if packagesets_ftbfs is not None and ps in packagesets_ftbfs:
-                    packagesets_ftbfs[ps].append(srcpkg)
+        # fill the new SourcePackage object with data
+        srcpkg.name = spph.source_package_name
+        srcpkg.url = f"https://launchpad.net/ubuntu/+source/{srcpkg.name}"
+        srcpkg.versions = cls.VersionList()
+        if find_tagged_bugs is None:
+            srcpkg.tagged_bugs = []
+        else:
+            ts = ubuntu.getSourcePackage(name=srcpkg.name).searchTasks(tags=find_tagged_bugs)
+            srcpkg.tagged_bugs = [t.bug for t in ts]
+        srcpkg.packagesets = {
+            ps
+            for (ps, srcpkglist) in list((packagesets or {}).items())
+            if spph.source_package_name in srcpkglist
+        }
+        if components and spph.component_name in components:
+            components[spph.component_name].append(srcpkg)
+        for ps in srcpkg.packagesets:
+            if packagesets_ftbfs is not None and ps in packagesets_ftbfs:
+                packagesets_ftbfs[ps].append(srcpkg)
 
-            srcpkg.teams = {
-                team
-                for (team, srcpkglist) in list((teams or {}).items())
-                if spph.source_package_name in srcpkglist and spph.component_name == "main"
-            }
-            for team in srcpkg.teams:
-                if teams_ftbfs is not None and team in teams_ftbfs:
-                    teams_ftbfs[team].append(srcpkg)
+        srcpkg.teams = {
+            team
+            for (team, srcpkglist) in list((teams or {}).items())
+            if spph.source_package_name in srcpkglist and spph.component_name == "main"
+        }
+        for team in srcpkg.teams:
+            if teams_ftbfs is not None and team in teams_ftbfs:
+                teams_ftbfs[team].append(srcpkg)
 
-            # add to cache
-            cls._cache[spph.source_package_name] = srcpkg
+        # add to cache
+        caches.sources[spph.source_package_name] = srcpkg
 
-            return srcpkg
-
-    @classmethod
-    def clear(cls) -> None:
-        """Clear the cache."""
-        cls._cache.clear()
+        return srcpkg
 
     def isFTBFS(self, arch_list: list[str] | None = None, current: bool = True) -> bool:
         """Returns True if at least one FTBFS exists."""
@@ -169,7 +185,6 @@ class SourcePackage:
 class SPPH:
     """Source Package Publishing History wrapper."""
 
-    _cache: dict[str, SPPH] = {}  # dict with all SPPH objects
     _lp: Any
     logs: dict[str, SPPH.BuildLog]
     version: str
@@ -180,6 +195,8 @@ class SPPH:
     def __new__(
         cls,
         spph_link: str,
+        *,
+        caches: ModelCaches,
         launchpad: Any = None,
         source_package_class: type[SourcePackage] | None = None,
         ubuntu: Any = None,
@@ -190,42 +207,39 @@ class SPPH:
         teams_ftbfs: dict[str, list[SourcePackage]] | None = None,
         components: dict[str, list[SourcePackage]] | None = None,
     ) -> SPPH:
-        try:
-            return cls._cache[spph_link]
-        except KeyError:
-            spph = super().__new__(cls)
+        if spph_link in caches.spphs:
+            return caches.spphs[spph_link]
+        spph = super().__new__(cls)
 
-            # fill the new SPPH object with data
-            lp_object = launchpad.load(spph_link)
-            spph._lp = lp_object
-            spph.logs = {}
-            spph.version = lp_object.source_package_version
-            spph.pocket = lp_object.pocket
-            spph.changed_by = PersonTeam(lp_object.package_creator_link, launchpad=launchpad)
-            spph.current = None
+        # fill the new SPPH object with data
+        lp_object = launchpad.load(spph_link)
+        spph._lp = lp_object
+        spph.logs = {}
+        spph.version = lp_object.source_package_version
+        spph.pocket = lp_object.pocket
+        spph.changed_by = PersonTeam(
+            lp_object.package_creator_link, caches=caches, launchpad=launchpad
+        )
+        spph.current = None
 
-            # Create SourcePackage if class provided
-            if source_package_class:
-                source_package_class(
-                    lp_object,
-                    ubuntu=ubuntu,
-                    find_tagged_bugs=find_tagged_bugs,
-                    packagesets=packagesets,
-                    packagesets_ftbfs=packagesets_ftbfs,
-                    teams=teams,
-                    teams_ftbfs=teams_ftbfs,
-                    components=components,
-                ).versions.append(spph)
+        # Create SourcePackage if class provided
+        if source_package_class:
+            source_package_class(
+                lp_object,
+                caches=caches,
+                ubuntu=ubuntu,
+                find_tagged_bugs=find_tagged_bugs,
+                packagesets=packagesets,
+                packagesets_ftbfs=packagesets_ftbfs,
+                teams=teams,
+                teams_ftbfs=teams_ftbfs,
+                components=components,
+            ).versions.append(spph)
 
-            # add to cache
-            cls._cache[spph_link] = spph
+        # add to cache
+        caches.spphs[spph_link] = spph
 
-            return spph
-
-    @classmethod
-    def clear(cls) -> None:
-        """Clear the cache."""
-        cls._cache.clear()
+        return spph
 
     class BuildLog:
         """Represents a build log with state and URLs."""
