@@ -155,13 +155,9 @@ class TestRebuildFetcher(BaseFetcher):
                     buildstate=build.buildstate,
                     datebuilt=build.datebuilt,
                     current_source_publication_link=build.current_source_publication_link,
-                    build_log_url=(
-                        build.build_log_url if hasattr(build, "build_log_url") else None
-                    ),
-                    upload_log_url=(
-                        build.upload_log_url if hasattr(build, "upload_log_url") else None
-                    ),
-                    dependencies=build.dependencies if hasattr(build, "dependencies") else None,
+                    build_log_url=build.build_log_url,
+                    upload_log_url=build.upload_log_url,
+                    dependencies=build.dependencies,
                     self_link=build.self_link,
                 )
 
@@ -390,8 +386,8 @@ class TestRebuildFetcher(BaseFetcher):
             buildstate=build.buildstate,
             datebuilt=build.datebuilt,
             current_source_publication_link=getattr(build, "current_source_publication_link", ""),
-            build_log_url=build.build_log_url if hasattr(build, "build_log_url") else None,
-            upload_log_url=build.upload_log_url if hasattr(build, "upload_log_url") else None,
-            dependencies=build.dependencies if hasattr(build, "dependencies") else None,
+            build_log_url=build.build_log_url,
+            upload_log_url=build.upload_log_url,
+            dependencies=build.dependencies,
             self_link=build.self_link,
         )
