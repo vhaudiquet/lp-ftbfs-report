@@ -112,13 +112,14 @@ def generate_page(
                 if s or s_sup:
                     cnt += s
                     cnt_sup += s_sup
-                    tooltip.append(
-                        f'<td>{comp}:</td><td style="text-align:right;">{s} ({s_sup} superseded)</td>'
-                    )
+                    tooltip.append(f"{comp}: {s} ({s_sup} superseded)")
             if cnt:
-                tooltiphtml = "<table><tr>"
-                tooltiphtml += "</tr><tr>".join(tooltip)
-                tooltiphtml += "</tr></table>"
+                # Plain text, not an HTML <table>: the per-cell tooltip is
+                # injected via element.innerHTML into a <span>, and a <table>
+                # start tag triggers the HTML parser's "clear the stack back to
+                # a table context" rule, hoisting the table out of the span and
+                # leaving the visible tooltip empty in real browsers.
+                tooltiphtml = "; ".join(tooltip)
                 stats[state][arch] = StatData(cnt, cnt_sup, tooltiphtml)
             else:
                 stats[state][arch] = StatData(None, None, None)
