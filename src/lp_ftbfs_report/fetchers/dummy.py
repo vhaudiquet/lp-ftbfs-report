@@ -27,6 +27,22 @@ from lp_ftbfs_report.fetchers.base import (
 )
 
 
+def _parse_datetime(value: str) -> datetime:
+    """Parse an ISO 8601 timestamp from a fixture into a tz-aware datetime.
+
+    Supports both the ``+00:00`` offset form and the ``Z`` suffix. The offset
+    is preserved (the result is timezone-aware), unlike the previous
+    ``.replace('+00:00', '')`` which silently stripped it and produced a
+    naive datetime — inconsistent with the tz-aware datetimes the real
+    Launchpad API returns, and wrong for any non-UTC offset.
+    """
+    # datetime.fromisoformat gained "Z" support in 3.11; the project floor is
+    # 3.10, so normalize the trailing Z to +00:00 ourselves.
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    return datetime.fromisoformat(value)
+
+
 class DummyFetcher(BaseFetcher):
     """Fetcher that loads data from JSON fixtures for testing.
 
@@ -102,9 +118,7 @@ class DummyFetcher(BaseFetcher):
                 # Parse datebuilt
                 datebuilt = None
                 if build_data.get("datebuilt"):
-                    datebuilt = datetime.fromisoformat(
-                        build_data["datebuilt"].replace("+00:00", "")
-                    )
+                    datebuilt = _parse_datetime(build_data["datebuilt"])
 
                 if verbose:
                     print(
@@ -172,7 +186,7 @@ class DummyFetcher(BaseFetcher):
         ref_data = self.reference_builds_data[source_name][arch]
         datebuilt = None
         if ref_data.get("datebuilt"):
-            datebuilt = datetime.fromisoformat(ref_data["datebuilt"].replace("+00:00", ""))
+            datebuilt = _parse_datetime(ref_data["datebuilt"])
 
         return BuildRecord(
             source_package_name=source_name,

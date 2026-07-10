@@ -1,6 +1,5 @@
 """Tests for DummyFetcher."""
 
-
 import pytest
 
 from lp_ftbfs_report.fetchers import DummyFetcher
@@ -134,3 +133,33 @@ def test_missing_required_fields(tmp_path):
 
     with pytest.raises(ValueError, match="missing 'builds' field"):
         DummyFetcher(str(invalid_fixture))
+
+
+def test_dummy_fetcher_parses_iso_timestamps_as_tz_aware(sample_fixture_path):
+    """datebuilt timestamps are parsed tz-aware, preserving the offset.
+
+    The real Launchpad API returns tz-aware UTC datetimes for build.datebuilt;
+    the dummy fetcher must match that so models.py (which formats them with a
+    hardcoded "UTC" suffix) stays consistent. Both the ``+00:00`` offset form
+    and the ``Z`` suffix must be accepted.
+    """
+    from datetime import timezone
+
+    from lp_ftbfs_report.fetchers.dummy import _parse_datetime
+
+    aware = _parse_datetime("2026-04-01T12:00:00+00:00")
+    assert aware.tzinfo is not None
+    assert aware.utcoffset() == timezone.utc.utcoffset(None)
+
+    zulu = _parse_datetime("2026-04-01T12:00:00Z")
+    assert zulu.tzinfo is not None
+    assert zulu.utcoffset() == timezone.utc.utcoffset(None)
+
+    offset = _parse_datetime("2026-04-01T12:00:00+02:00")
+    assert offset.utcoffset().total_seconds() == 2 * 3600
+
+    # And the records the fetcher yields actually carry a tz-aware datebuilt.
+    fetcher = DummyFetcher(sample_fixture_path)
+    builds = list(fetcher.get_build_records("Failed to build", ["amd64"]))
+    assert builds, "fixture should have at least one amd64 FTBFS build"
+    assert all(b.datebuilt is not None and b.datebuilt.tzinfo is not None for b in builds)
