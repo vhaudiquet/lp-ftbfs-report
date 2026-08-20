@@ -1,0 +1,92 @@
+# FTBFS report scheduling and serving
+options:
+  # --------------------------------------------------------------------------
+  # Report generation
+  # --------------------------------------------------------------------------
+  archive:
+    type: string
+    description: |
+      Name of the Launchpad archive to query, e.g. `primary` for the Ubuntu
+      primary archive or the name of an archive test rebuild.
+    default: "primary"
+  series:
+    type: string
+    description: |
+      Ubuntu series name to build the report for (e.g. `noble`, `oracular`,
+      `plucky`).
+    default: "stonking"
+  architectures:
+    type: string
+    description: |
+      Comma separated list of Launchpad architecture tags to include in the
+      report, e.g. `amd64,arm64,armhf,ppc64el,s390x,riscv64,i386`.
+    default: "amd64,arm64,armhf,ppc64el,s390x,riscv64,i386"
+  ppa:
+    type: string
+    description: |
+      Optional PPA spec to generate the report for, in the form
+      `owner/ppa_name`. When set, `archive` is ignored and the report is
+      generated in PPA mode (regressions-only is forced off by the tool).
+    default: ""
+  filename:
+    type: string
+    description: |
+      File name prefix for the generated report. Use `index` so the page is
+      served directly at the site root (e.g. https://ftbfs.ubuntu.com/).
+    default: "index"
+  updates-archive:
+    type: string
+    description: |
+      Optional name of an Ubuntu updates archive whose build states are also
+      folded into the report. Empty disables the updates pass.
+    default: ""
+  reference-series:
+    type: string
+    description: |
+      Optional name of a series to look for successful builds when computing
+      regressions. Empty disables reference-series lookups.
+    default: ""
+  regressions-only:
+    type: boolean
+    description: |
+      Only report build regressions compared to the main archive. Ignored in
+      PPA mode.
+    default: false
+  release-only:
+    type: boolean
+    description: |
+      Only include sources currently published in the release pocket.
+    default: false
+  # --------------------------------------------------------------------------
+  # Scheduling
+  # --------------------------------------------------------------------------
+  schedule-hour:
+    type: int
+    description: |
+      UTC hour (0-23) at which the daily regeneration runs.
+    default: 2
+  schedule-minute:
+    type: int
+    description: |
+      UTC minute (0-59) at which the daily regeneration runs.
+    default: 0
+  stale-after-hours:
+    type: int
+    description: |
+      If no report newer than this many hours exists on startup, generate
+      one immediately before starting the daily schedule. Set to 0 to never
+      regenerate on startup (wait for the next scheduled slot).
+    default: 24
+  # --------------------------------------------------------------------------
+  # Serving
+  # --------------------------------------------------------------------------
+  server-port:
+    type: int
+    description: |
+      TCP port the built-in static HTTP server listens on.
+    default: 8080
+  report-command-verbose:
+    type: boolean
+    description: |
+      Run lp-ftbfs-report with -v (per-build detail) in the scheduler logs.
+    default: false

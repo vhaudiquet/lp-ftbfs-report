@@ -1,0 +1,14 @@
+[project]
+name = "lp-ftbfs-report-charm"
+version = "1.0.0"
+description = "Juju K8s charm for the lp-ftbfs-report tool"
+requires-python = ">=3.10"
+dependencies = [
+    "ops>=3.0,<4.0",
+]
+
+[dependency-groups]
+dev = [
+    "ops[testing]>=3.0,<4.0",
+    "pytest>=8.0.0",
+]

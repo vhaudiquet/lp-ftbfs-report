@@ -1,0 +1,5 @@
+generate:
+  description: |
+    Trigger an immediate regeneration of the FTBFS report instead of
+    waiting for the next scheduled run. Runs synchronously and returns
+    once lp-ftbfs-report has finished.

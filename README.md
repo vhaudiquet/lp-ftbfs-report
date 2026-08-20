@@ -102,6 +102,21 @@ Add a development dependency:
 uv add --dev <package-name>
 ```
 
+## Juju charm
+
+A Kubernetes charm that generates this report once a day and serves it over
+HTTP (suitable for `ftbfs.ubuntu.com`) lives under [`charm/`](charm/README.md).
+See its README for build and deploy instructions.
+
+## Rock
+
+The OCI workload image for the charm is built from [`rockcraft.yaml`](rockcraft.yaml). It bundles Python 3, the `lp-ftbfs-report` CLI, the daily [`scheduler.py`](charm/src/scheduler.py), and `ca-certificates`.
+
+```bash
+rockcraft pack
+# -> lp-ftbfs-report_1.0.0_amd64.rock
+```
+
 ## License
 
 GPL-2.0-or-later

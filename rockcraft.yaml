@@ -1,0 +1,49 @@
+# Rockcraft recipe for the lp-ftbfs-report workload image.
+#
+# Build from the repo root with:
+#   rockcraft pack
+# This produces a .rock (OCI archive)
+
+name: lp-ftbfs-report
+base: bare
+build-base: ubuntu@24.04
+version: "1.0.0"
+summary: Launchpad FTBFS report generator + daily scheduler
+description: |
+  Minimal OCI image bundling Python 3, the lp-ftbfs-report package and a
+  daily scheduler script. It is consumed by the lp-ftbfs-report Juju charm.
+license: GPL-2.0
+platforms:
+  amd64:
+  arm64:
+  ppc64el:
+  s390x:
+
+parts:
+  # ----------------------------------------------------------------------
+  # The lp-ftbfs-report package itself, built with `uv sync` from the
+  # repo root. Dependencies are resolved from uv.lock (reproducible).
+  # The `[project.scripts]` entry point lands `lp-ftbfs-report` on PATH.
+  # ----------------------------------------------------------------------
+  lp-ftbfs-report:
+    plugin: uv
+    source: .
+    source-type: local
+    build-snaps:
+      - astral-uv
+    stage-packages:
+      - python3-venv
+      - ca-certificates
+
+  # ----------------------------------------------------------------------
+  # Copy the scheduler script from charm/src/ into /opt in the image.
+  # The charm's Pebble plan runs it as `python3 /opt/scheduler.py`.
+  # ----------------------------------------------------------------------
+  scheduler:
+    plugin: dump
+    source: .
+    source-type: local
+    organize:
+      charm/src/scheduler.py: opt/scheduler.py
+    stage:
+      - opt/scheduler.py

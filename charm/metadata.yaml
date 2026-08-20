@@ -1,0 +1,49 @@
+name: lp-ftbfs-report
+summary: |
+  Juju K8s charm that generates a Launchpad FTBFS report once a day and
+  serves it over HTTP.
+description: |
+  This charm deploys the lp-ftbfs-report tool as a workload on Kubernetes.
+  Once a day (and once on startup if no fresh report is present) it queries
+  the Launchpad API for the configured Ubuntu archive, series and
+  architectures and writes an HTML report plus the static assets
+  (style.css, filters.js) into a persistent directory. A built-in static
+  HTTP server then serves that directory, so the report is reachable on the
+  unit's address (e.g. behind ftbfs.ubuntu.com).
+
+  The Launchpad login is anonymous, so no credentials are required; the
+  charm only needs network access to api.launchpad.net.
+maintainers:
+  - Ubuntu Developers <geser@ubuntu.com>
+license: GPL-2.0-or-later
+source: https://github.com/canonical/lp-ftbfs-report
+issues: https://github.com/canonical/lp-ftbfs-report/issues
+
+assumes:
+  - k8s-api
+
+containers:
+  ftbfs-report:
+    resource: oci-image
+    mounts:
+      - storage: reports
+        location: /srv/reports
+
+resources:
+  oci-image:
+    type: oci-image
+    description: |
+      OCI image (rock) containing Python, the lp-ftbfs-report package and the
+      daily scheduler. Built with rockcraft from the `rock/` directory.
+
+storage:
+  reports:
+    type: filesystem
+    location: /srv/reports
+    description: |
+      Persistent location for generated HTML/CSV reports and static assets,
+      served by the built-in HTTP server.
+
+provides:
+  website:
+    interface: http

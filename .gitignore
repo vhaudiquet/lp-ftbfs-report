@@ -46,3 +46,14 @@ snap/.snapcraft/
 # Frontend tests (Bun)
 tests/frontend/node_modules/
 tests/frontend/bun.lockb
+
+# Charm build/test artifacts
+charm/.venv/
+charm/__pycache__/
+charm/*.charm
+
+# Rock build artifacts
+rock/.rockcraft/
+rock/stage/
+rock/prime/
+*.rock
