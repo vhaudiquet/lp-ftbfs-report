@@ -27,6 +27,7 @@ dev = [
 
 [project.scripts]
 lp-ftbfs-report = "lp_ftbfs_report.build_status:main"
+lp-ftbfs-render = "lp_ftbfs_report.render:main"
 
 [build-system]
 requires = ["hatchling"]

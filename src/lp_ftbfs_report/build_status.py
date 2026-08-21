@@ -44,6 +44,7 @@ from lp_ftbfs_report.fetchers import (
 )
 from lp_ftbfs_report.html_generator import generate_page
 from lp_ftbfs_report.models import ModelCaches, SourcePackage
+from lp_ftbfs_report.report_data import serialize_report, write_json
 
 # Configuration constants
 LP_SERVICE = "production"
@@ -305,6 +306,13 @@ def main() -> None:
         help="Print per-build detail (never-built, reference-build lookups, etc.). "
         "Without this flag only a compact progress line per build state is shown.",
     )
+    parser.add_argument(
+        "--json-only",
+        dest="json_only",
+        action="store_true",
+        default=False,
+        help="Only fetch data and write the JSON file; skip HTML and CSV generation.",
+    )
     # Positional arguments are mode-dependent (archive/series/arch), validated
     # manually below; the multi-mode usage string above documents them.
     parser.add_argument("args", nargs="*", help=SUPPRESS)
@@ -461,6 +469,48 @@ def main() -> None:
 
     generated_info += datetime.now(timezone.utc).strftime("  /  Finished: %Y-%m-%d %X")
 
+    # ── Step 1: Serialize aggregated data to JSON ────────────────────────────
+    out_dir = os.path.abspath(options.output_dir if options.output_dir is not None else os.getcwd())
+
+    meta = {
+        "name": options.name,
+        "generated": generated_info,
+        "archive": {"name": archive.name, "displayname": archive.displayname},
+        "updates_archive": (
+            {"name": updates_archive.name, "displayname": updates_archive.displayname}
+            if updates_archive
+            else None
+        ),
+        "main_archive": (
+            {"name": main_archive.name, "displayname": main_archive.displayname}
+            if main_archive
+            else None
+        ),
+        "series": {"name": series.name, "fullseriesname": series.fullseriesname},
+        "archs_by_archive": archs_by_archive,
+        "arch_list": default_arch_list,
+        "notice": notice,
+        "release_only": bool(options.release_only),
+        "ref_series": options.ref_series,
+    }
+
+    json_path = os.path.join(out_dir, f"{options.name}.json")
+    print("Writing JSON data file...", file=sys.stderr)
+    write_json(serialize_report(components, packagesets_ftbfs, teams_ftbfs, meta), json_path)
+
+    if options.json_only:
+        GREEN = "\033[32m"
+        CYAN = "\033[36m"
+        BOLD = "\033[1m"
+        RESET = "\033[0m"
+        CHECK = "\u2714"
+        print()
+        print(f"{BOLD}{GREEN}{CHECK}  Data aggregation complete!{RESET}")
+        print(f"   {CYAN}JSON{RESET}   {json_path}")
+        print()
+        return
+
+    # ── Step 2: Render HTML and CSV from in-memory objects ───────────────────
     print("Generating HTML page...", file=sys.stderr)
     generate_page(
         options.name,
@@ -482,8 +532,6 @@ def main() -> None:
     print("Generating CSV file...", file=sys.stderr)
     generate_csvfile(options.name, components, output_dir=options.output_dir)
 
-    # Resolve the actual output directory used (mirrors the default in the generators)
-    out_dir = os.path.abspath(options.output_dir if options.output_dir is not None else os.getcwd())
     html_path = os.path.join(out_dir, f"{options.name}.html")
     csv_path = os.path.join(out_dir, f"{options.name}.csv")
 
@@ -495,6 +543,7 @@ def main() -> None:
 
     print()
     print(f"{BOLD}{GREEN}{CHECK}  Report generation complete!{RESET}")
+    print(f"   {CYAN}JSON{RESET}   {json_path}")
     print(f"   {CYAN}HTML{RESET}   {html_path}")
     print(f"   {CYAN}CSV{RESET}    {csv_path}")
     for asset in sorted(os.listdir(os.path.join(os.path.dirname(__file__), "html"))):
