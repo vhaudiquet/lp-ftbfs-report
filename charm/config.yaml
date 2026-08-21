@@ -52,6 +52,14 @@ options:
       Only report build regressions compared to the main archive. Ignored in
       PPA mode.
     default: false
+  dummy-data:
+    type: string
+    description: |
+      Path to a JSON fixture file for offline/test report generation. When
+      set, the report is generated from the fixture instead of querying
+      Launchpad. Useful for integration tests and staging. Empty disables
+      (uses live Launchpad data).
+    default: ""
   release-only:
     type: boolean
     description: |

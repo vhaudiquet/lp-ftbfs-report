@@ -89,3 +89,29 @@ jobs:
       - name: Run charm unit tests
         working-directory: charm
         run: PYTHONPATH=src uv run python -m pytest tests/ -v
+
+  charm-integration:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install microk8s
+        run: |
+          sudo snap install microk8s --channel=1.36-strict/stable
+          sudo usermod -a -G snap_microk8s $USER
+          sudo microk8s enable dns hostpath-storage registry
+      - name: Install skopeo
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq skopeo
+
+      - name: Install juju
+        run: sudo snap install juju --classic
+
+      - name: Bootstrap juju controller
+        run: juju bootstrap microk8s mk8s-ftbfs-test --no-switch
+
+      - name: Run integration tests
+        run: ./scripts/run-integration-test.sh
+        env:
+          JUJU_CONTROLLER: mk8s-ftbfs-test

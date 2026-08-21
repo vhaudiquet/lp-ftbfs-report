@@ -70,6 +70,9 @@ def build_command(report_dir: str) -> list[str]:
     if _env_bool("FTBFS_VERBOSE"):
         cmd.append("--verbose")
 
+    dummy = _env("FTBFS_DUMMY_DATA")
+    if dummy:
+        cmd += ["--dummy-data", dummy]
     filename = _env("FTBFS_FILENAME", "index")
     cmd += ["--filename", filename, "--output-dir", report_dir]
 
@@ -80,7 +83,7 @@ def build_command(report_dir: str) -> list[str]:
     archs = [a for a in _env("FTBFS_ARCHS").split(",") if a]
     if not series or not archs:
         raise RuntimeError("FTBFS_SERIES and FTBFS_ARCHS must be set")
-    if not ppa:
+    if not ppa and not dummy:
         archive = _env("FTBFS_ARCHIVE", "primary")
         cmd += [archive, series]
     else:

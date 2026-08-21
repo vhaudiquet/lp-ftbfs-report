@@ -187,7 +187,28 @@ def test_update_status_when_no_report():
 def test_collect_app_status_waiting_when_cannot_connect():
     ctx = testing.Context(LpFtbfsReportCharm)
     state_out = ctx.run(ctx.on.collect_app_status(), _state(can_connect=False, leader=True))
-    assert isinstance(state_out.app_status, ops.WaitingStatus)
+    # collect_app_status fires collect_unit_status too; both should report waiting.
+    assert isinstance(state_out.unit_status, ops.WaitingStatus)
+    ctx.close()
+
+def test_collect_unit_status_waiting_when_cannot_connect():
+    ctx = testing.Context(LpFtbfsReportCharm)
+    state_out = ctx.run(ctx.on.collect_unit_status(), _state(can_connect=False, leader=True))
+    assert isinstance(state_out.unit_status, ops.WaitingStatus)
+    ctx.close()
+
+
+def test_dummy_data_config_passed_to_scheduler_env():
+    ctx = testing.Context(LpFtbfsReportCharm)
+    container = _container()
+    state_in = testing.State(
+        containers=[container],
+        storages=[testing.Storage("reports")],
+        config={"dummy-data": "/opt/sample.json"},
+    )
+    state_out = ctx.run(ctx.on.pebble_ready(container=container), state_in)
+    env = state_out.get_container(CONTAINER).plan.services[SCHEDULER_SERVICE].environment
+    assert env["FTBFS_DUMMY_DATA"] == "/opt/sample.json"
     ctx.close()
 
 

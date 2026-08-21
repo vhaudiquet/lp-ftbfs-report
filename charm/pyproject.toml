@@ -12,3 +12,14 @@ dev = [
     "ops[testing]>=3.0,<4.0",
     "pytest>=8.0.0",
 ]
+integration = [
+    "jubilant>=1.8,<2",
+    "pytest-jubilant>=2,<3",
+    "pytest>=8.0.0",
+    "requests>=2.25.0",
+    "pyyaml>=6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["tests/integration"]

@@ -36,7 +36,7 @@ class LpFtbfsReportCharm(ops.CharmBase):
         self.framework.observe(self.on.ftbfs_report_pebble_ready, self._on_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.update_status, self._on_update_status)
-        self.framework.observe(self.on.collect_app_status, self._on_collect_app_status)
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         self.framework.observe(self.on.generate_action, self._on_generate_action)
 
     # ------------------------------------------------------------------ #
@@ -61,7 +61,7 @@ class LpFtbfsReportCharm(ops.CharmBase):
             "FTBFS_REFERENCE_SERIES": str(cfg["reference-series"]),
             "FTBFS_REGRESSIONS_ONLY": "1" if cfg["regressions-only"] else "0",
             "FTBFS_RELEASE_ONLY": "1" if cfg["release-only"] else "0",
-            "FTBFS_VERBOSE": "1" if verbose else "0",
+            "FTBFS_DUMMY_DATA": str(cfg["dummy-data"]),
             "FTBFS_SCHEDULE_HOUR": str(hour),
             "FTBFS_SCHEDULE_MINUTE": str(minute),
             "FTBFS_STALE_AFTER_HOURS": str(stale),
@@ -79,7 +79,6 @@ class LpFtbfsReportCharm(ops.CharmBase):
                     "--bind 0.0.0.0",
                     "working-dir": REPORTS_DIR,
                     "startup": "enabled",
-                    "after": [SCHEDULER_SERVICE],
                 },
                 SCHEDULER_SERVICE: {
                     "override": "replace",
@@ -115,22 +114,26 @@ class LpFtbfsReportCharm(ops.CharmBase):
         self._update_plan()
         self._restart_services()
 
-    def _on_update_status(self, _event: ops.UpdateStatusEvent) -> None:
+    def _unit_status(self) -> ops.StatusBase:
+        """Compute the current unit status based on service and report state."""
         if not self.container.can_connect():
-            return
+            return ops.WaitingStatus("waiting for workload container")
         try:
             scheduler = self.container.get_service(SCHEDULER_SERVICE)
             server = self.container.get_service(SERVER_SERVICE)
         except (ops.pebble.Error, ops.ModelError, KeyError):
-            self.unit.status = ops.WaitingStatus("services not ready")
-            return
+            return ops.WaitingStatus("services not ready")
         if not scheduler.is_running() or not server.is_running():
-            self.unit.status = ops.WaitingStatus("services starting")
-            return
+            return ops.WaitingStatus("services starting")
         if self._has_fresh_report():
-            self.unit.status = ops.ActiveStatus("report is fresh and being served")
-        else:
-            self.unit.status = ops.ActiveStatus("serving; report regenerating")
+            return ops.ActiveStatus("report is fresh and being served")
+        return ops.ActiveStatus("serving; report regenerating")
+
+    def _on_update_status(self, _event: ops.UpdateStatusEvent) -> None:
+        self.unit.status = self._unit_status()
+
+    def _on_collect_unit_status(self, event: ops.CollectUnitStatusEvent) -> None:
+        event.add_status(self._unit_status())
 
     def _on_collect_app_status(self, event: ops.CollectAppStatusEvent) -> None:
         if not self.container.can_connect():

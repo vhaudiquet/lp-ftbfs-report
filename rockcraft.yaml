@@ -5,7 +5,7 @@
 # This produces a .rock (OCI archive)
 
 name: lp-ftbfs-report
-base: bare
+base: ubuntu@24.04
 build-base: ubuntu@24.04
 version: "1.0.0"
 summary: Launchpad FTBFS report generator + daily scheduler
@@ -45,5 +45,7 @@ parts:
     source-type: local
     organize:
       charm/src/scheduler.py: opt/scheduler.py
+      tests/fixtures/sample.json: opt/sample.json
     stage:
       - opt/scheduler.py
+      - opt/sample.json
