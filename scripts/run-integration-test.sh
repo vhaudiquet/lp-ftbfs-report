@@ -42,7 +42,7 @@ ROCK_IMAGE="localhost:${REGISTRY_PORT}/lp-ftbfs-report:${ROCK_TAG}"
 # --- Helpers ----------------------------------------------------------------
 
 log() { echo -e "\033[1;34m[integration]\033[0m $*"; }
-err() { echo -e "\033[1;31m[error]\033[0m $*" >&2; }
+err() { printf '\033[1;31m[error]\033[0m %s\n' "$*" >&2; }
 die() { err "$*"; exit 1; }
 
 # (No model cleanup needed — jubilant creates and destroys its own temp model.)
@@ -163,6 +163,9 @@ else
     log "  (this only happens once; set JUJU_CONTROLLER to reuse an existing one)"
     juju bootstrap microk8s "$CONTROLLER_NAME" --no-switch
 fi
+# Unset JUJU_CONTROLLER so it doesn't override juju switch / juju models.
+# We've already used it to set CONTROLLER_NAME above.
+unset JUJU_CONTROLLER
 
 # Switch to the microk8s controller so jubilant creates its temp model
 # on the right cloud (k8s, not LXD).
@@ -175,7 +178,8 @@ trap 'rm -f "$KUBECONFIG_FILE"' EXIT
 
 log "Building the rock..."
 cd "$REPO_ROOT"
-ROCK_FILE="$(rockcraft pack 2>&1 | grep '^Packed' | awk '{print $2}')"
+rockcraft pack || die "rockcraft pack failed"
+ROCK_FILE="$(ls -t *.rock 2>/dev/null | head -1)"
 [[ -n "$ROCK_FILE" ]] || die "rockcraft pack did not produce a .rock file"
 log "  Rock built: $ROCK_FILE"
 
@@ -189,12 +193,10 @@ log "  Image pushed."
 
 log "Building the charm..."
 cd "$CHARM_DIR"
-CHARM_FILE="$(charmcraft pack 2>&1 | grep '^Packed' | awk '{print $2}')"
+charmcraft pack || die "charmcraft pack failed"
+CHARM_FILE="$(ls -t *.charm 2>/dev/null | head -1)"
 [[ -n "$CHARM_FILE" ]] || die "charmcraft pack did not produce a .charm file"
-
-# charmcraft writes the .charm in the charm/ directory.
 CHARM_PATH="$CHARM_DIR/$CHARM_FILE"
-[[ -f "$CHARM_PATH" ]] || CHARM_PATH="$REPO_ROOT/$CHARM_FILE"
 [[ -f "$CHARM_PATH" ]] || die "Cannot find packed .charm file: $CHARM_FILE"
 log "  Charm built: $CHARM_PATH"
 

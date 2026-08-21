@@ -97,21 +97,35 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+
+      - name: Set up LXD
+        uses: canonical/setup-lxd@v1
+        with:
+          channel: latest/stable
+
       - name: Install microk8s
         run: |
           sudo snap install microk8s --channel=1.36-strict/stable
           sudo usermod -a -G snap_microk8s $USER
           sudo microk8s enable dns hostpath-storage registry
+
       - name: Install skopeo
         run: sudo apt-get update -qq && sudo apt-get install -y -qq skopeo
 
       - name: Install juju
         run: sudo snap install juju --classic
 
+      - name: Install charmcraft and rockcraft
+        run: |
+          sudo snap install charmcraft --classic
+          sudo snap install rockcraft --classic
+
       - name: Bootstrap juju controller
-        run: juju bootstrap microk8s mk8s-ftbfs-test --no-switch
+        run: sg snap_microk8s -c "juju bootstrap microk8s mk8s-ftbfs-test --no-switch"
 
       - name: Run integration tests
-        run: ./scripts/run-integration-test.sh
+        run: sg snap_microk8s -c "./scripts/run-integration-test.sh"
         env:
           JUJU_CONTROLLER: mk8s-ftbfs-test
