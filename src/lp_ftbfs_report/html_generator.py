@@ -14,11 +14,19 @@ from __future__ import annotations
 import os
 import shutil
 import time
-from typing import Any
+from typing import Any, NamedTuple
 
 from jinja2 import Environment, FileSystemLoader
 
 from lp_ftbfs_report.models import SourcePackage
+
+
+class StatData(NamedTuple):
+    """Per-cell statistics for the summary table tooltip."""
+
+    cnt: int | None
+    cnt_superseded: int | None
+    tooltip: str | None
 
 
 def generate_page(
@@ -80,13 +88,6 @@ def generate_page(
         packagesets_ftbfs[pkgset] = filter_ftbfs(pkglist, True)
     for team, pkglist in list(teams_ftbfs.items()):
         teams_ftbfs[team] = filter_ftbfs(pkglist, True)
-
-    # container object to hold the counts and the tooltip
-    class StatData:
-        def __init__(self, cnt: int | None, cnt_superseded: int | None, tooltip: str | None):
-            self.cnt = cnt
-            self.cnt_superseded = cnt_superseded
-            self.tooltip = tooltip
 
     # compute some statistics (number of packages for each build failure type)
     stats = {}
