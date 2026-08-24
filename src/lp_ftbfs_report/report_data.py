@@ -24,12 +24,12 @@ JSON structure
 {
   "meta": {
     "name":            str,           # output file prefix
-    "generated":       str,           # "Started: … / Finished: …"
+    "generated_started":  str,           # ISO 8601, or null
+    "generated_finished": str,           # ISO 8601, or null
     "archive":         {"name": str, "displayname": str},
     "updates_archive": {"name": str, "displayname": str} | null,
     "main_archive":    {"name": str, "displayname": str} | null,
     "series":          {"name": str, "fullseriesname": str},
-    "archs_by_archive": {"main": [...], "ports": [...]},
     "arch_list":       [...],
     "notice":          str | null,
     "release_only":    bool,
@@ -37,7 +37,6 @@ JSON structure
   },
   "packages": {
     "<pkg-name>": {
-      "name":        str,
       "url":         str,
       "packagesets": [str, ...],
       "teams":       [str, ...],
@@ -50,10 +49,11 @@ JSON structure
           "changed_by": str | null,   # already formatted as "Name (login)"
           "logs": {
             "<arch>": {
-              "buildstate": str,
-              "url":        str,
-              "log":        str,
-              "tooltip":    str
+              "buildstate":   str,
+              "url":          str,
+              "log":          str,
+              "datebuilt":    str | null,   # ISO 8601
+              "dependencies": str | null     # only for DepWait states
             }
           }
         }
@@ -70,9 +70,10 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime
 from typing import Any
 
-from lp_ftbfs_report.models import SourcePackage
+from lp_ftbfs_report.models import SourcePackage, format_build_tooltip
 
 # ---------------------------------------------------------------------------
 # Serialization helpers
@@ -89,7 +90,8 @@ def _serialize_source_package(pkg: SourcePackage) -> dict:
                 "buildstate": log.buildstate,
                 "url": log.url,
                 "log": log.log,
-                "tooltip": log.tooltip,
+                "datebuilt": log.datebuilt.isoformat() if log.datebuilt else None,
+                "dependencies": log.dependencies,
             }
         versions.append(
             {
@@ -103,7 +105,6 @@ def _serialize_source_package(pkg: SourcePackage) -> dict:
         )
 
     return {
-        "name": pkg.name,
         "url": pkg.url,
         "packagesets": sorted(pkg.packagesets),
         "teams": sorted(pkg.teams),
@@ -235,7 +236,15 @@ class _BuildLogProxy:
         self.buildstate: str = data["buildstate"]
         self.url: str = data["url"]
         self.log: str = data["log"]
-        self.tooltip: str = data["tooltip"]
+        # The tooltip display text is derived from the structured datebuilt /
+        # dependencies fields via the shared helper, keeping this proxy's
+        # output byte-identical to the live SPPH.BuildLog.
+        datebuilt = data.get("datebuilt")
+        if isinstance(datebuilt, str):
+            datebuilt = datetime.fromisoformat(datebuilt)
+        self.tooltip: str = format_build_tooltip(
+            self.buildstate, datebuilt, data.get("dependencies")
+        )
 
 
 class _SPPHProxy:
@@ -260,8 +269,8 @@ class _SPPHProxy:
 class _SourcePackageProxy:
     """Stand-in for SourcePackage; implements the full rendering interface."""
 
-    def __init__(self, data: dict) -> None:
-        self.name: str = data["name"]
+    def __init__(self, name: str, data: dict) -> None:
+        self.name: str = name
         self.url: str = data["url"]
         self.packagesets: set[str] = set(data.get("packagesets", []))
         self.teams: set[str] = set(data.get("teams", []))
@@ -341,7 +350,8 @@ def deserialize_report(
 
     # Build the flat package-proxy registry.
     pkg_proxies: dict[str, _SourcePackageProxy] = {
-        name: _SourcePackageProxy(pkg_data) for name, pkg_data in data.get("packages", {}).items()
+        name: _SourcePackageProxy(name, pkg_data)
+        for name, pkg_data in data.get("packages", {}).items()
     }
 
     def _resolve(names: list[str]) -> list[_SourcePackageProxy]:
@@ -371,13 +381,13 @@ def deserialize_report(
         "archive": archive,
         "updates_archive": updates_archive,
         "series": series,
-        "archs_by_archive": meta.get("archs_by_archive", {"main": [], "ports": []}),
         "main_archive": main_archive,
         "arch_list": meta.get("arch_list", []),
         "notice": meta.get("notice"),
         "release_only": bool(meta.get("release_only", False)),
         "ref_series": meta.get("ref_series"),
-        "generated": meta.get("generated", ""),
+        "generated_started": meta.get("generated_started"),
+        "generated_finished": meta.get("generated_finished"),
     }
 
     return components, packagesets_ftbfs, teams_ftbfs, render_kwargs

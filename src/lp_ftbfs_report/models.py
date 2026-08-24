@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Any
 
 import debian.debian_support
@@ -27,6 +27,28 @@ def translate_api_web(self_url: str | None, api_version: str = "devel") -> str:
         return ""
     else:
         return self_url.replace("api.", "").replace(f"{api_version}/", "")
+
+
+# Build states whose tooltip describes an unsatisfied dependency wait.
+# Kept in sync with the mapping in SPPH.BuildLog.__init__.
+_DEPWAIT_STATES = frozenset(("MANUALDEPWAIT", "ALWAYSDEPWAIT", "NOREGRDEPWAIT"))
+
+
+def format_build_tooltip(
+    buildstate: str, datebuilt: datetime | None, dependencies: str | None
+) -> str:
+    """Format the per-build tooltip text from structured data.
+
+    Single source of truth for the ``tooltip`` shown in the HTML report: both
+    the live model (:class:`SPPH.BuildLog`) and the JSON deserialization
+    proxy call this, so the two render paths stay byte-identical.
+    """
+    if buildstate in _DEPWAIT_STATES:
+        return f"waits on {dependencies}"
+    if datebuilt is None:
+        return "Broken build"
+    when = datebuilt.astimezone(timezone.utc)
+    return f"Build finished on {when.strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
 
 @dataclass
@@ -252,6 +274,8 @@ class SPPH:
         buildstate: str
         url: str
         log: str
+        datebuilt: datetime | None
+        dependencies: str | None
         tooltip: str
 
         def __init__(
@@ -293,16 +317,12 @@ class SPPH:
                 else:
                     self.log = ""
 
-            if self.buildstate in ("MANUALDEPWAIT", "ALWAYSDEPWAIT", "NOREGRDEPWAIT"):
-                self.tooltip = f"waits on {build.dependencies}"
-            elif build.datebuilt is None:
-                self.tooltip = "Broken build"
-            else:
-                # Normalize to UTC before formatting: datebuilt may carry a
-                # non-UTC offset (e.g. a fixture timestamp), and labelling a
-                # non-UTC wall-clock time as "UTC" would be wrong.
-                when = build.datebuilt.astimezone(timezone.utc)
-                self.tooltip = f"Build finished on {when.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            # Retain the structured data behind the tooltip so the JSON
+            # serializer can emit it directly; the display text is derived via
+            # format_build_tooltip() (shared with the deserialization proxy).
+            self.datebuilt = build.datebuilt
+            self.dependencies = build.dependencies
+            self.tooltip = format_build_tooltip(self.buildstate, self.datebuilt, self.dependencies)
 
     def addBuildLog(
         self,

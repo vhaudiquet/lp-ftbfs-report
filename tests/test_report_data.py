@@ -46,11 +46,6 @@ def _build_report(fixture_path: str) -> tuple:
     archive = fetcher.create_mock_archive()
     launchpad = fetcher.create_mock_launchpad()
 
-    archs_by_archive: dict[str, list[str]] = {"main": [], "ports": []}
-    for arch in ARCH_LIST:
-        das = series.getDistroArchSeries(archtag=arch)
-        archs_by_archive["main" if das.official else "ports"].append(arch)
-
     caches = ModelCaches()
     components: dict[str, list] = {
         "main": [],
@@ -92,12 +87,12 @@ def _build_report(fixture_path: str) -> tuple:
 
     meta = {
         "name": "test-report",
-        "generated": "Started: 2026-01-01  /  Finished: 2026-01-01",
+        "generated_started": "2026-01-01T00:00:00+00:00",
+        "generated_finished": "2026-01-01T00:00:00+00:00",
         "archive": {"name": archive.name, "displayname": archive.displayname},
         "updates_archive": None,
         "main_archive": None,
         "series": {"name": series.name, "fullseriesname": series.fullseriesname},
-        "archs_by_archive": archs_by_archive,
         "arch_list": ARCH_LIST,
         "notice": None,
         "release_only": False,
@@ -189,14 +184,14 @@ def test_deserialize_report_renders_same_html(comprehensive_fixture_path, tmp_pa
         _MockArchive(meta["archive"]),
         None,
         _MockSeries(meta["series"]),
-        meta["archs_by_archive"],
         None,
         components,
         packagesets_ftbfs,
         teams_ftbfs,
         arch_list=meta["arch_list"],
         output_dir=str(direct_dir),
-        generated=meta["generated"],
+        generated_started=meta["generated_started"],
+        generated_finished=meta["generated_finished"],
         lastupdate="2026-01-01 00:00:00 +0000",
     )
 
@@ -213,7 +208,6 @@ def test_deserialize_report_renders_same_html(comprehensive_fixture_path, tmp_pa
         render_kwargs.pop("archive"),
         render_kwargs.pop("updates_archive"),
         render_kwargs.pop("series"),
-        render_kwargs.pop("archs_by_archive"),
         render_kwargs.pop("main_archive"),
         d_components,
         d_ps,
@@ -287,13 +281,12 @@ def test_deserialize_empty_report():
     data = {
         "meta": {
             "name": "empty",
-            "generated": "",
+            "generated_started": None,
+            "generated_finished": None,
             "archive": {"name": "a", "displayname": "A"},
             "updates_archive": None,
             "main_archive": None,
             "series": {"name": "s", "fullseriesname": "S"},
-            "archs_by_archive": {"main": [], "ports": []},
-            "arch_list": [],
             "notice": None,
             "release_only": False,
             "ref_series": None,

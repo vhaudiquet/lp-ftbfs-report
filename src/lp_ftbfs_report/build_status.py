@@ -336,18 +336,18 @@ def _build_parser() -> ArgumentParser:
     return parser
 
 
-def _classify_archs(series: Any, arch_args: list[str]) -> tuple[dict[str, list[str]], list[str]]:
-    """Split architectures into main/ports and build the ordered default list.
+def _order_archs(series: Any, arch_args: list[str]) -> list[str]:
+    """Order architectures: officially supported first, then unofficial.
 
-    Returns ``(archs_by_archive, default_arch_list)`` where the default list
-    has main archs first, then ports.
+    ``DistroArchSeries.official`` marks architectures Ubuntu officially
+    supports; they appear before unofficial ones in the report.
     """
-    archs_by_archive: dict[str, list[str]] = {"main": [], "ports": []}
+    official: list[str] = []
+    unofficial: list[str] = []
     for arch in arch_args:
         das = series.getDistroArchSeries(archtag=arch)
-        archs_by_archive["main" if das.official else "ports"].append(arch)
-    default_arch_list = [*archs_by_archive["main"], *archs_by_archive["ports"]]
-    return archs_by_archive, default_arch_list
+        (official if das.official else unofficial).append(arch)
+    return [*official, *unofficial]
 
 
 def _init_accumulators(
@@ -427,15 +427,16 @@ def _build_meta(
     updates_archive: Any,
     main_archive: Any,
     series: Any,
-    archs_by_archive: dict[str, list[str]],
     arch_list: list[str],
     notice: str | None,
-    generated_info: str,
+    generated_started: str,
+    generated_finished: str,
 ) -> dict:
     """Build the metadata dict serialized alongside the report data."""
     return {
         "name": options.name,
-        "generated": generated_info,
+        "generated_started": generated_started,
+        "generated_finished": generated_finished,
         "archive": {"name": archive.name, "displayname": archive.displayname},
         "updates_archive": (
             {"name": updates_archive.name, "displayname": updates_archive.displayname}
@@ -448,7 +449,6 @@ def _build_meta(
             else None
         ),
         "series": {"name": series.name, "fullseriesname": series.fullseriesname},
-        "archs_by_archive": archs_by_archive,
         "arch_list": arch_list,
         "notice": notice,
         "release_only": bool(options.release_only),
@@ -485,9 +485,10 @@ def main() -> None:
     if result is None:
         return
 
-    archs_by_archive, default_arch_list = _classify_archs(result.series, result.arch_args)
+    default_arch_list = _order_archs(result.series, result.arch_args)
 
-    generated_info = datetime.now(timezone.utc).strftime("Started: %Y-%m-%d %X")
+    generated_started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
     print(f"Generating FTBFS for {result.series.fullseriesname}", file=sys.stderr)
 
     # Per-run model caches, held as an instance rather than module globals so
@@ -522,7 +523,7 @@ def main() -> None:
     else:
         notice = None
 
-    generated_info += datetime.now(timezone.utc).strftime("  /  Finished: %Y-%m-%d %X")
+    generated_finished = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
     # ── Step 1: Serialize aggregated data to JSON ────────────────────────────
     out_dir = os.path.abspath(options.output_dir if options.output_dir is not None else os.getcwd())
@@ -534,12 +535,11 @@ def main() -> None:
         result.updates_archive,
         result.main_archive,
         result.series,
-        archs_by_archive,
         default_arch_list,
         notice,
-        generated_info,
+        generated_started,
+        generated_finished,
     )
-
     json_path = os.path.join(out_dir, f"{options.name}.json")
     print("Writing JSON data file...", file=sys.stderr)
     write_json(serialize_report(components, packagesets_ftbfs, teams_ftbfs, meta), json_path)
@@ -555,16 +555,15 @@ def main() -> None:
         result.archive,
         result.updates_archive,
         result.series,
-        archs_by_archive,
         result.main_archive,
         components,
         packagesets_ftbfs,
         teams_ftbfs,
         arch_list=default_arch_list,
         notice=notice,
-        release_only=options.release_only,
+        generated_started=generated_started,
+        generated_finished=generated_finished,
         ref_series=options.ref_series,
-        generated=generated_info,
         output_dir=options.output_dir,
     )
     print("Generating CSV file...", file=sys.stderr)

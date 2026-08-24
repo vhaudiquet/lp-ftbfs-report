@@ -78,7 +78,6 @@ def main() -> None:
         render_kwargs.pop("archive"),
         render_kwargs.pop("updates_archive"),
         render_kwargs.pop("series"),
-        render_kwargs.pop("archs_by_archive"),
         render_kwargs.pop("main_archive"),
         components,
         packagesets_ftbfs,

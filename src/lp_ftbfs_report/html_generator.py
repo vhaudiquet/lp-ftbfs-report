@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import shutil
 import time
+from datetime import datetime
 from typing import Any, NamedTuple
 
 from jinja2 import Environment, FileSystemLoader
@@ -29,12 +30,34 @@ class StatData(NamedTuple):
     tooltip: str | None
 
 
+def _format_generated(started: str | None, finished: str | None) -> str:
+    """Rebuild the legacy "Started: … / Finished: …" line from ISO timestamps.
+
+    The JSON wire format carries two structured timestamps; the HTML footer
+    still shows the familiar human-readable single line, reassembled here.
+    """
+
+    def _fmt(ts: str | None) -> str:
+        if not ts:
+            return ""
+        try:
+            return datetime.fromisoformat(ts).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return ts
+
+    parts = []
+    if started:
+        parts.append(f"Started: {_fmt(started)}")
+    if finished:
+        parts.append(f"Finished: {_fmt(finished)}")
+    return "  /  ".join(parts)
+
+
 def generate_page(
     name: str,
     archive: Any,
     updates_archive: Any,
     series: Any,
-    archs_by_archive: dict[str, list[str]],
     main_archive: Any,
     components: dict[str, list[SourcePackage]],
     packagesets_ftbfs: dict[str, list[SourcePackage]],
@@ -45,6 +68,8 @@ def generate_page(
     release_only: bool = False,
     ref_series: Any = None,
     generated: str = "",
+    generated_started: str | None = None,
+    generated_finished: str | None = None,
     output_dir: str | None = None,
     lastupdate: str | None = None,
 ) -> None:
@@ -55,7 +80,6 @@ def generate_page(
         archive: The Launchpad archive
         updates_archive: Updates archive (optional)
         series: Distro series
-        archs_by_archive: Dictionary mapping archive type to architecture list
         main_archive: Main archive for comparison
         components: Dictionary of packages per component
         packagesets_ftbfs: Dictionary of FTBFS packages per packageset
@@ -132,9 +156,12 @@ def generate_page(
     data["main_archive"] = main_archive
     data["series"] = series
     data["arch_list"] = arch_list
-    data["archs_by_archive"] = archs_by_archive
     data["lastupdate"] = lastupdate if lastupdate is not None else time.strftime("%F %T %z")
-    data["generated"] = generated
+    data["generated"] = (
+        _format_generated(generated_started, generated_finished)
+        if generated or generated_started or generated_finished
+        else ""
+    )
     data["packagesets"] = packagesets_ftbfs
     data["teams"] = teams_ftbfs
     data["notice"] = notice
