@@ -47,7 +47,7 @@ JSON structure
           "version":    str,
           "pocket":     str,
           "current":    bool | null,
-          "changed_by": str | null,   # already formatted as "Name (login)"
+          "changed_by": {"full_name": str, "username": str} | null,
           "logs": {
             "<arch>": {
               "buildstate":   str,
@@ -99,8 +99,13 @@ def _serialize_source_package(pkg: SourcePackage) -> dict:
                 "version": ver.version,
                 "pocket": ver.pocket,
                 "current": ver.current,
-                # PersonTeam.__str__ already returns "Display Name (login)"
-                "changed_by": str(ver.changed_by) if ver.changed_by else None,
+                # Structured person data; the display string is reconstructed
+                # by _SPPHProxy.getChangedBy() for byte-identical rendering.
+                "changed_by": (
+                    {"full_name": ver.changed_by.display_name, "username": ver.changed_by.name}
+                    if ver.changed_by
+                    else None
+                ),
                 "logs": logs,
             }
         )
@@ -269,7 +274,11 @@ class _SPPHProxy:
         self.version: str = data["version"]
         self.pocket: str = data["pocket"]
         self.current: bool | None = data.get("current")
-        self._changed_by_str: str = data.get("changed_by") or "unknown"
+        changed_by = data.get("changed_by")
+        if changed_by is not None:
+            self._changed_by_str = f"{changed_by['full_name']} ({changed_by['username']})"
+        else:
+            self._changed_by_str = "unknown"
         self.logs: dict[str, _BuildLogProxy] = {
             arch: _BuildLogProxy(log_data) for arch, log_data in data.get("logs", {}).items()
         }

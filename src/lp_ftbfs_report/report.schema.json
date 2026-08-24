@@ -171,6 +171,15 @@
         "title": { "type": "string" }
       }
     },
+    "person": {
+      "type": "object",
+      "required": ["full_name", "username"],
+      "additionalProperties": false,
+      "properties": {
+        "full_name": { "type": "string" },
+        "username": { "type": "string" }
+      }
+    },
     "version": {
       "type": "object",
       "required": ["version", "pocket", "current", "changed_by", "logs"],
@@ -189,8 +198,11 @@
           "description": "Whether this is the current publication, or null if undetermined."
         },
         "changed_by": {
-          "type": ["string", "null"],
-          "description": "Person who changed this version, formatted as 'Display Name (login)', or null."
+          "description": "Person who changed this version, or null.",
+          "oneOf": [
+            { "$ref": "#/$defs/person" },
+            { "type": "null" }
+          ]
         },
         "logs": {
           "type": "object",
