@@ -104,9 +104,9 @@ def fetch_pkg_list(
             if state == "Successfully built":
                 # Record successful build from updates archive so the
                 # main-archive pass can skip packages already fixed there.
-                ctx.update_builds[
-                    (build_record.source_package_name, build_record.arch_tag)
-                ] = build_record
+                ctx.update_builds[(build_record.source_package_name, build_record.arch_tag)] = (
+                    build_record
+                )
                 progress.mark("skipped")
                 continue
         else:

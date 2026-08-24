@@ -168,6 +168,7 @@ def read_json(path: str) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
+
 # ---------------------------------------------------------------------------
 # Terminal output helpers (shared by build_status.py and render.py)
 # ---------------------------------------------------------------------------

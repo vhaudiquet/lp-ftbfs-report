@@ -365,4 +365,3 @@ def test_find_reference_build_returns_none_when_no_match():
     ref_archive = _archive(published_sources=[pub])
     fetcher = _make_fetcher(main_archive=ref_archive, ref_series=_series(name="noble"))
     assert fetcher.find_reference_build("pkg", "amd64", ["Release"]) is None
-
