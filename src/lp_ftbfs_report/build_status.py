@@ -312,7 +312,7 @@ def _build_parser() -> ArgumentParser:
         "--output-dir",
         dest="output_dir",
         default=None,
-        help="Directory where generated HTML and CSV reports are written (defaults to the package directory).",
+        help="Directory where generated HTML and CSV reports are written (defaults to the current directory).",
     )
     parser.add_argument(
         "-v",
@@ -526,6 +526,7 @@ def main() -> None:
 
     # ── Step 1: Serialize aggregated data to JSON ────────────────────────────
     out_dir = os.path.abspath(options.output_dir if options.output_dir is not None else os.getcwd())
+    os.makedirs(out_dir, exist_ok=True)
 
     meta = _build_meta(
         options,

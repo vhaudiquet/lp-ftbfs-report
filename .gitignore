@@ -29,7 +29,7 @@ htmlcov/
 # Linting
 .ruff_cache/
 
-# Generated into root directory
+# Generated into root directory (dev: CWD is the repo root)
 /*.css
 /*.js
 /*.json
