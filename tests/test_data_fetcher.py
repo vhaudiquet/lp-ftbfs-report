@@ -11,6 +11,8 @@ preserve this behaviour.
 
 from __future__ import annotations
 
+import json
+
 from lp_ftbfs_report.data_fetcher import FetchContext, ReportAccumulators, fetch_pkg_list
 from lp_ftbfs_report.fetchers import DummyFetcher
 from lp_ftbfs_report.models import ModelCaches, SourcePackage
@@ -186,3 +188,138 @@ def test_caches_are_cleared_between_runs(sample_fixture_path):
     assert ctx.caches.spphs == {}
     assert ctx.caches.sources == {}
     assert ctx.caches.persons == {}
+
+
+# --------------------------------------------------------------------------- #
+# updates-archive integration (cross-fetcher)
+# --------------------------------------------------------------------------- #
+
+
+def test_update_archive_success_skips_main_archive_failures_across_fetchers(
+    tmp_path,
+):
+    """A build that succeeded in the updates archive is skipped during the
+    main-archive pass, even though the two passes use different fetcher
+    instances.
+
+    The update_builds dict lives on the shared FetchContext so both passes
+    see it.  Before the fix, update_builds was per-fetcher-instance and the
+    check always returned False — a regression introduced when the module-
+    level global was moved onto TestRebuildFetcher in the fetcher abstraction.
+    """
+    fixture = {
+        "archive": {"name": "test", "displayname": "Test Archive"},
+        "series": {"name": "oracular", "fullseriesname": "Ubuntu Oracular"},
+        "builds": [
+            {
+                "source_package_name": "fixed-pkg",
+                "source_package_version": "1.0-1",
+                "arch_tag": "amd64",
+                "buildstate": "Successfully built",
+                "datebuilt": "2026-04-01T12:00:00+00:00",
+                "current_source_publication_link": "",
+                "build_log_url": None,
+                "upload_log_url": None,
+                "dependencies": None,
+                "self_link": "https://api.launchpad.net/devel/~test/+build/1",
+            },
+            {
+                "source_package_name": "fixed-pkg",
+                "source_package_version": "1.0-1",
+                "arch_tag": "amd64",
+                "buildstate": "Failed to build",
+                "datebuilt": "2026-04-02T12:00:00+00:00",
+                "current_source_publication_link": (
+                    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/1"
+                ),
+                "build_log_url": "https://launchpad.net/~test/+build/2/+files/log.txt.gz",
+                "upload_log_url": None,
+                "dependencies": None,
+                "self_link": "https://api.launchpad.net/devel/~test/+build/2",
+            },
+            {
+                "source_package_name": "still-broken-pkg",
+                "source_package_version": "2.0-1",
+                "arch_tag": "amd64",
+                "buildstate": "Failed to build",
+                "datebuilt": "2026-04-02T12:00:00+00:00",
+                "current_source_publication_link": (
+                    "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2"
+                ),
+                "build_log_url": "https://launchpad.net/~test/+build/3/+files/log.txt.gz",
+                "upload_log_url": None,
+                "dependencies": None,
+                "self_link": "https://api.launchpad.net/devel/~test/+build/3",
+            },
+        ],
+        "publications": {
+            "https://api.launchpad.net/devel/ubuntu/+archive/test/+sourcepub/2": {
+                "source_package_name": "still-broken-pkg",
+                "source_package_version": "2.0-1",
+                "component_name": "universe",
+                "pocket": "Release",
+                "package_creator_link": "https://api.launchpad.net/devel/~creator",
+            },
+        },
+        "packagesets": {},
+        "teams": {},
+        "bugs": {},
+    }
+    fixture_path = tmp_path / "fixture.json"
+    fixture_path.write_text(json.dumps(fixture))
+
+    # Two independent fetcher instances, as in build_status.main().
+    updates_fetcher = DummyFetcher(str(fixture_path), api_version="devel")
+    main_fetcher = DummyFetcher(str(fixture_path), api_version="devel")
+
+    components: dict[str, list[SourcePackage]] = {
+        "main": [],
+        "restricted": [],
+        "universe": [],
+        "multiverse": [],
+    }
+    packagesets = main_fetcher.get_packagesets()
+    packagesets_ftbfs: dict[str, list[SourcePackage]] = {ps: [] for ps in packagesets}
+    teams = main_fetcher.get_teams()
+    teams_ftbfs: dict[str, list[SourcePackage]] = {team: [] for team in teams}
+
+    ctx = FetchContext(
+        launchpad=main_fetcher.create_mock_launchpad(),
+        ubuntu=main_fetcher.create_mock_launchpad(),
+        main_archive=None,
+        ref_series=None,
+        find_tagged_bugs="ftbfs",
+        caches=ModelCaches(),
+        api_version="devel",
+        verbose=False,
+        regressions_only=False,
+    )
+    accumulators = ReportAccumulators(
+        components=components,
+        packagesets=packagesets,
+        packagesets_ftbfs=packagesets_ftbfs,
+        teams=teams,
+        teams_ftbfs=teams_ftbfs,
+    )
+    arch_list = ["amd64"]
+
+    # Phase 1 — updates-archive pass: record successful builds.
+    fetch_pkg_list(
+        state="Successfully built",
+        arch_list=arch_list,
+        fetcher=updates_fetcher,
+        accumulators=accumulators,
+        ctx=ctx,
+        is_updates_archive=True,
+    )
+    assert ("fixed-pkg", "amd64") in ctx.update_builds
+
+    # Phase 2 — main-archive pass: fixed-pkg is skipped, still-broken-pkg is kept.
+    fetch_pkg_list(
+        state="Failed to build",
+        arch_list=arch_list,
+        fetcher=main_fetcher,
+        accumulators=accumulators,
+        ctx=ctx,
+    )
+    assert _names(components["universe"]) == ["still-broken-pkg"]

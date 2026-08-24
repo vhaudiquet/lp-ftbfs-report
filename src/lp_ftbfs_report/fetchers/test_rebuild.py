@@ -80,7 +80,6 @@ class TestRebuildFetcher(BaseFetcher):
         self.verbose = verbose
 
         # Caches
-        self.update_builds: dict[tuple[str, str], Any] = {}
         # Successful builds found in the reference series, keyed by
         # (source_name, ref_series_name, pocket, arch) -> Launchpad build object.
         self._reference_build_cache: dict[tuple[str, str, str, str], Any] = {}
@@ -357,28 +356,6 @@ class TestRebuildFetcher(BaseFetcher):
             self._main_build_state_cache[cache_key] = results
 
         return results.get(arch)
-
-    def check_update_archive_success(self, source_name: str, arch: str) -> bool:
-        """Check if build succeeded in updates archive.
-
-        Args:
-            source_name: Source package name
-            arch: Architecture
-
-        Returns:
-            True if build succeeded in updates archive
-        """
-        return (source_name, arch) in self.update_builds
-
-    def record_update_build(self, source_name: str, arch: str, build: Any) -> None:
-        """Record a successful build from updates archive.
-
-        Args:
-            source_name: Source package name
-            arch: Architecture
-            build: Build object
-        """
-        self.update_builds[(source_name, arch)] = build
 
     def _build_to_record(self, build: Any) -> BuildRecord:
         """Convert Launchpad build object to BuildRecord."""

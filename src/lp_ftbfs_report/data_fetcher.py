@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from lp_ftbfs_report.fetchers import BaseFetcher
@@ -53,6 +53,12 @@ class FetchContext:
     api_version: str = "devel"
     verbose: bool = False
     regressions_only: bool = False
+    # Successful builds found in the updates archive, keyed by
+    # (source_name, arch_tag).  Populated during the updates-archive pass and
+    # consulted during the main-archive pass to skip builds already fixed
+    # there.  Lives on the shared context, not on a fetcher instance, so both
+    # passes see the same dict even though they use different fetchers.
+    update_builds: dict[tuple[str, str], Any] = field(default_factory=dict)
 
 
 def fetch_pkg_list(
@@ -96,20 +102,16 @@ def fetch_pkg_list(
         # Handle updates archive logic
         if is_updates_archive:
             if state == "Successfully built":
-                # Record successful build from updates archive
-                if hasattr(fetcher, "record_update_build"):
-                    fetcher.record_update_build(  # type: ignore[call-non-callable]
-                        build_record.source_package_name, build_record.arch_tag, build_record
-                    )
+                # Record successful build from updates archive so the
+                # main-archive pass can skip packages already fixed there.
+                ctx.update_builds[
+                    (build_record.source_package_name, build_record.arch_tag)
+                ] = build_record
                 progress.mark("skipped")
                 continue
         else:
-            # Check if build succeeded in updates archive
-            if hasattr(
-                fetcher, "check_update_archive_success"
-            ) and fetcher.check_update_archive_success(  # type: ignore[call-non-callable]
-                build_record.source_package_name, build_record.arch_tag
-            ):
+            # Skip packages that already succeeded in the updates archive.
+            if (build_record.source_package_name, build_record.arch_tag) in ctx.update_builds:
                 if ctx.verbose:
                     print(
                         f"    Skipping {build_record.source_package_name}, "

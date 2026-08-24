@@ -366,16 +366,3 @@ def test_find_reference_build_returns_none_when_no_match():
     fetcher = _make_fetcher(main_archive=ref_archive, ref_series=_series(name="noble"))
     assert fetcher.find_reference_build("pkg", "amd64", ["Release"]) is None
 
-
-# --------------------------------------------------------------------------- #
-# updates-archive helpers
-# --------------------------------------------------------------------------- #
-
-
-def test_record_and_check_update_archive_success():
-    fetcher = _make_fetcher()
-    assert fetcher.check_update_archive_success("pkg", "amd64") is False
-    build = _build()
-    fetcher.record_update_build("pkg", "amd64", build)
-    assert fetcher.check_update_archive_success("pkg", "amd64") is True
-    assert fetcher.update_builds[("pkg", "amd64")] is build
