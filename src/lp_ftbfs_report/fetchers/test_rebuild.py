@@ -111,8 +111,9 @@ class TestRebuildFetcher(BaseFetcher):
         arch_list: list[str],
     ) -> BuildRecordSet:
         """Get build records matching the given state and architectures."""
-        # XXX wgrant 2009-09-19: This is an awful hack. We should really
-        # just let IArchive.getBuildRecords take a series argument.
+        # IArchive.getBuildRecords does not accept a series argument, so for
+        # the primary archive we query the series instead; non-primary archives
+        # are already series-scoped at the archive level.
         if self.archive.name == "primary":
             buildlist = self.series.getBuildRecords(build_state=state)
         else:
