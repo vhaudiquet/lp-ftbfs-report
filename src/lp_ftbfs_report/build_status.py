@@ -435,6 +435,7 @@ def _build_meta(
     """Build the metadata dict serialized alongside the report data."""
     return {
         "name": options.name,
+        "schema_version": 1,
         "generated_started": generated_started,
         "generated_finished": generated_finished,
         "archive": {"name": archive.name, "displayname": archive.displayname},

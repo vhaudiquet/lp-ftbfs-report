@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ftbfs.ubuntu.com/report.schema.json",
+  "title": "FTBFS Report",
+  "description": "Launchpad FTBFS (Failed To Build From Source) report data, as produced by serialize_report() and consumed by deserialize_report().",
+  "type": "object",
+  "required": ["meta", "packages", "components", "packagesets_ftbfs", "teams_ftbfs"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": { "$ref": "#/$defs/meta" },
+    "packages": {
+      "type": "object",
+      "description": "Flat registry of all source packages, keyed by package name.",
+      "additionalProperties": { "$ref": "#/$defs/package" }
+    },
+    "components": {
+      "type": "object",
+      "description": "Package names grouped by component (main, restricted, universe, multiverse).",
+      "additionalProperties": {
+      "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "packagesets_ftbfs": {
+      "type": "object",
+      "description": "Package names grouped by packageset.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "teams_ftbfs": {
+      "type": "object",
+      "description": "Package names grouped by team.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "required": [
+        "name",
+        "schema_version",
+        "generated_started",
+        "generated_finished",
+        "archive",
+        "updates_archive",
+        "main_archive",
+        "series",
+        "arch_list",
+        "notice",
+        "release_only",
+        "ref_series"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Output file name prefix."
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Schema version of this report."
+        },
+        "generated_started": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when report generation started, or null."
+        },
+        "generated_finished": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when report generation finished, or null."
+        },
+        "archive": { "$ref": "#/$defs/archive" },
+        "updates_archive": {
+          "description": "Updates archive metadata, or null if not applicable.",
+          "oneOf": [
+            { "$ref": "#/$defs/archive" },
+            { "type": "null" }
+          ]
+        },
+        "main_archive": {
+          "description": "Main archive metadata, or null if not applicable.",
+          "oneOf": [
+            { "$ref": "#/$defs/archive" },
+            { "type": "null" }
+          ]
+        },
+        "series": { "$ref": "#/$defs/series" },
+        "arch_list": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered list of architecture tags covered by this report."
+        },
+        "notice": {
+          "type": ["string", "null"],
+          "description": "Optional HTML notice to display in the report header, or null."
+        },
+        "release_only": {
+          "type": "boolean",
+          "description": "Whether only release-pocket publications are included."
+        },
+        "ref_series": {
+          "type": ["string", "null"],
+          "description": "Name of the reference series for successful-build lookups, or null."
+        }
+      }
+    },
+    "archive": {
+      "type": "object",
+      "required": ["name", "displayname"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "displayname": { "type": "string" }
+      }
+    },
+    "series": {
+      "type": "object",
+      "required": ["name", "fullseriesname"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "fullseriesname": { "type": "string" }
+      }
+    },
+    "package": {
+      "type": "object",
+      "required": ["url", "packagesets", "teams", "tagged_bugs", "versions"],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Launchpad source package URL."
+        },
+        "packagesets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Packageset names this package belongs to."
+        },
+        "teams": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Team names this package is assigned to."
+        },
+        "tagged_bugs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bug" },
+          "description": "Launchpad bugs tagged with the FTBFS tag."
+        },
+        "versions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/version" },
+          "description": "Published versions of this source package."
+        }
+      }
+    },
+    "bug": {
+      "type": "object",
+      "required": ["id", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "integer" },
+        "title": { "type": "string" }
+      }
+    },
+    "version": {
+      "type": "object",
+      "required": ["version", "pocket", "current", "changed_by", "logs"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Debian version string."
+        },
+        "pocket": {
+          "type": "string",
+          "description": "Pocket name (Release, Updates, Proposed, Security)."
+        },
+        "current": {
+          "type": ["boolean", "null"],
+          "description": "Whether this is the current publication, or null if undetermined."
+        },
+        "changed_by": {
+          "type": ["string", "null"],
+          "description": "Person who changed this version, formatted as 'Display Name (login)', or null."
+        },
+        "logs": {
+          "type": "object",
+          "description": "Build logs keyed by architecture tag.",
+          "additionalProperties": { "$ref": "#/$defs/buildLog" }
+        }
+      }
+    },
+    "buildLog": {
+      "type": "object",
+      "required": ["buildstate", "url", "log", "datebuilt", "dependencies"],
+      "additionalProperties": false,
+      "properties": {
+        "buildstate": {
+          "type": "string",
+          "enum": [
+            "FAILEDTOBUILD",
+            "MANUALDEPWAIT",
+            "CHROOTWAIT",
+            "UPLOADFAIL",
+            "CANCELLED",
+            "ALWAYSFTBFS",
+            "ALWAYSDEPWAIT",
+            "NOREGRFTBFS",
+            "NOREGRDEPWAIT"
+          ],
+          "description": "Internal build state code."
+        },
+        "url": {
+          "type": "string",
+          "description": "Launchpad build page URL."
+        },
+        "log": {
+          "type": "string",
+          "description": "Build log URL (or upload log URL for UPLOADFAIL)."
+        },
+        "datebuilt": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the build finished, or null."
+        },
+        "dependencies": {
+          "type": ["string", "null"],
+          "description": "Unsatisfied dependencies for DepWait states, or null."
+        }
+      }
+    }
+  }
+}

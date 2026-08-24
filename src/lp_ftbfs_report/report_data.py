@@ -24,6 +24,7 @@ JSON structure
 {
   "meta": {
     "name":            str,           # output file prefix
+    "schema_version":   int,           # report schema version
     "generated_started":  str,           # ISO 8601, or null
     "generated_finished": str,           # ISO 8601, or null
     "archive":         {"name": str, "displayname": str},
@@ -167,6 +168,18 @@ def write_json(data: dict, path: str) -> None:
 def read_json(path: str) -> dict:
     """Read a report data dict from a JSON file."""
     with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def get_schema() -> dict:
+    """Return the JSON Schema (draft 2020-12) for the report output format.
+
+    The schema is bundled as ``report.schema.json`` alongside this module
+    and is included in the wheel distribution, so it can be served alongside
+    the report data for external consumers.
+    """
+    schema_path = os.path.join(os.path.dirname(__file__), "report.schema.json")
+    with open(schema_path, encoding="utf-8") as f:
         return json.load(f)
 
 

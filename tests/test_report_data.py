@@ -20,7 +20,13 @@ from lp_ftbfs_report.data_fetcher import FetchContext, ReportAccumulators, fetch
 from lp_ftbfs_report.fetchers import DummyFetcher
 from lp_ftbfs_report.html_generator import generate_page
 from lp_ftbfs_report.models import ModelCaches
-from lp_ftbfs_report.report_data import deserialize_report, read_json, serialize_report, write_json
+from lp_ftbfs_report.report_data import (
+    deserialize_report,
+    get_schema,
+    read_json,
+    serialize_report,
+    write_json,
+)
 
 ARCHIVE_STATES = (
     "Failed to build",
@@ -87,6 +93,7 @@ def _build_report(fixture_path: str) -> tuple:
 
     meta = {
         "name": "test-report",
+        "schema_version": 1,
         "generated_started": "2026-01-01T00:00:00+00:00",
         "generated_finished": "2026-01-01T00:00:00+00:00",
         "archive": {"name": archive.name, "displayname": archive.displayname},
@@ -143,6 +150,18 @@ def test_serialize_report_is_json_serializable(comprehensive_fixture_path):
     import json
 
     json.dumps(data)  # raises TypeError if not serializable
+
+
+def test_serialize_report_validates_against_schema(comprehensive_fixture_path):
+    """The serialized report conforms to the JSON Schema."""
+    from jsonschema import Draft202012Validator, FormatChecker
+
+    components, packagesets_ftbfs, teams_ftbfs, meta = _build_report(comprehensive_fixture_path)
+    data = serialize_report(components, packagesets_ftbfs, teams_ftbfs, meta)
+
+    validator = Draft202012Validator(get_schema(), format_checker=FormatChecker())
+    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
+    assert not errors, "\n".join(f"{'/'.join(map(str, e.path))}: {e.message}" for e in errors)
 
 
 # --------------------------------------------------------------------------- #
@@ -281,6 +300,7 @@ def test_deserialize_empty_report():
     data = {
         "meta": {
             "name": "empty",
+            "schema_version": 1,
             "generated_started": None,
             "generated_finished": None,
             "archive": {"name": "a", "displayname": "A"},
