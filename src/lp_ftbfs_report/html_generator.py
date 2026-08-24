@@ -46,6 +46,7 @@ def generate_page(
     ref_series: Any = None,
     generated: str = "",
     output_dir: str | None = None,
+    lastupdate: str | None = None,
 ) -> None:
     """Generate an HTML page with FTBFS report.
 
@@ -64,8 +65,8 @@ def generate_page(
         notice: Optional HTML notice to include
         release_only: Whether to only include release pocket packages
         ref_series: Reference series for comparison
-        generated: Generation timestamp string
         output_dir: Output directory (defaults to the current working directory)
+        lastupdate: Footer timestamp (defaults to current time)
     """
     if arch_list is None:
         arch_list = []
@@ -132,7 +133,7 @@ def generate_page(
     data["series"] = series
     data["arch_list"] = arch_list
     data["archs_by_archive"] = archs_by_archive
-    data["lastupdate"] = time.strftime("%F %T %z")
+    data["lastupdate"] = lastupdate if lastupdate is not None else time.strftime("%F %T %z")
     data["generated"] = generated
     data["packagesets"] = packagesets_ftbfs
     data["teams"] = teams_ftbfs

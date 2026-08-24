@@ -197,6 +197,7 @@ def test_deserialize_report_renders_same_html(comprehensive_fixture_path, tmp_pa
         arch_list=meta["arch_list"],
         output_dir=str(direct_dir),
         generated=meta["generated"],
+        lastupdate="2026-01-01 00:00:00 +0000",
     )
 
     # Decoupled render: serialize → JSON → deserialize → render.
@@ -219,6 +220,7 @@ def test_deserialize_report_renders_same_html(comprehensive_fixture_path, tmp_pa
         d_teams,
         arch_list=render_kwargs.pop("arch_list"),
         output_dir=str(decoupled_dir),
+        lastupdate="2026-01-01 00:00:00 +0000",
         **render_kwargs,
     )
 
