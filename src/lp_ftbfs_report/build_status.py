@@ -44,7 +44,7 @@ from lp_ftbfs_report.fetchers import (
 )
 from lp_ftbfs_report.html_generator import generate_page
 from lp_ftbfs_report.models import ModelCaches, SourcePackage
-from lp_ftbfs_report.report_data import serialize_report, write_json
+from lp_ftbfs_report.report_data import print_summary, serialize_report, write_json
 
 # Configuration constants
 LP_SERVICE = "production"
@@ -244,8 +244,28 @@ def setup_fetcher_and_context(
     )
 
 
-def main() -> None:
-    """Main entry point for the FTBFS report generator."""
+# Build-state tuples for the two fetch passes.
+# The updates-archive pass includes "Successfully built" so it can record
+# packages that already succeeded there; the main-archive pass skips those.
+UPDATES_ARCHIVE_STATES = (
+    "Successfully built",
+    "Failed to build",
+    "Dependency wait",
+    "Chroot problem",
+    "Failed to upload",
+    "Cancelled build",
+)
+ARCHIVE_STATES = (
+    "Failed to build",
+    "Dependency wait",
+    "Chroot problem",
+    "Failed to upload",
+    "Cancelled build",
+)
+
+
+def _build_parser() -> ArgumentParser:
+    """Build the command-line argument parser."""
     usage = (
         "%(prog)s [options] <archive> <series> <arch> [<arch> ...]\n"
         "       %(prog)s --ppa <owner/ppaname> <series> <arch> [<arch> ...]\n"
@@ -254,10 +274,7 @@ def main() -> None:
     parser = ArgumentParser(usage=usage)
     parser.add_argument("-f", "--filename", dest="name", help="File name prefix for the result.")
     parser.add_argument(
-        "-n",
-        "--notice",
-        dest="notice_file",
-        help="HTML notice file to include in the page header.",
+        "-n", "--notice", dest="notice_file", help="HTML notice file to include in the page header."
     )
     parser.add_argument(
         "--regressions-only",
@@ -314,101 +331,47 @@ def main() -> None:
         help="Only fetch data and write the JSON file; skip HTML and CSV generation.",
     )
     # Positional arguments are mode-dependent (archive/series/arch), validated
-    # manually below; the multi-mode usage string above documents them.
+    # manually in main(); the multi-mode usage string above documents them.
     parser.add_argument("args", nargs="*", help=SUPPRESS)
-    options = parser.parse_args()
-    args = options.args
+    return parser
 
-    # Determine mode based on flags
-    if options.ppa_spec:
-        # PPA mode: ppa_spec, series, arch(s)
-        if len(args) < 2:
-            parser.error("PPA mode needs at least 2 arguments: <series> <arch> [<arch> ...]")
-    elif options.dummy_fixture:
-        # Dummy mode: series, arch(s)
-        if len(args) < 2:
-            parser.error("Dummy mode needs at least 2 arguments: <series> <arch> [<arch> ...]")
-    else:
-        # Standard mode: archive, series, arch(s)
-        if len(args) < 3:
-            parser.error("Need at least 3 arguments: <archive> <series> <arch> [<arch> ...]")
 
-    # Login to Launchpad only if not in dummy mode (dummy mode uses mock objects)
-    if options.dummy_fixture:
-        launchpad = None
-        ubuntu = None
-    else:
-        # login anonymously to LP
-        launchpad = Launchpad.login_anonymously("qa-ftbfs", LP_SERVICE, version=API_VERSION)
-        ubuntu = launchpad.distributions["ubuntu"]
+def _classify_archs(series: Any, arch_args: list[str]) -> tuple[dict[str, list[str]], list[str]]:
+    """Split architectures into main/ports and build the ordered default list.
 
-    # Set up fetcher and context based on mode
-    result = setup_fetcher_and_context(options, args, launchpad, ubuntu, API_VERSION)
-    if result is None:
-        return
-
-    fetcher = result.fetcher
-    updates_fetcher = result.updates_fetcher
-    archive = result.archive
-    series = result.series
-    launchpad = result.launchpad
-    ubuntu = result.ubuntu
-    main_archive = result.main_archive
-    updates_archive = result.updates_archive
-    ref_series = result.ref_series
-    arch_args = result.arch_args
-
-    # Process architecture list
+    Returns ``(archs_by_archive, default_arch_list)`` where the default list
+    has main archs first, then ports.
+    """
     archs_by_archive: dict[str, list[str]] = {"main": [], "ports": []}
-    default_arch_list: list[str] = []
     for arch in arch_args:
         das = series.getDistroArchSeries(archtag=arch)
         archs_by_archive["main" if das.official else "ports"].append(arch)
-    default_arch_list.extend(archs_by_archive["main"])
-    default_arch_list.extend(archs_by_archive["ports"])
+    default_arch_list = [*archs_by_archive["main"], *archs_by_archive["ports"]]
+    return archs_by_archive, default_arch_list
 
-    generated_info = datetime.now(timezone.utc).strftime("Started: %Y-%m-%d %X")
 
-    # Use the archive and series directly (no need for a loop)
-    print(f"Generating FTBFS for {series.fullseriesname}", file=sys.stderr)
+def _init_accumulators(
+    fetcher: BaseFetcher,
+) -> tuple[
+    dict[str, list[SourcePackage]],
+    dict[str, list[SourcePackage]],
+    dict[str, list[SourcePackage]],
+    ReportAccumulators,
+]:
+    """Create the components/packagesets/teams accumulators for a run.
 
-    # Per-run model caches, held as an instance rather than module globals so
-    # the pipeline is reusable in-process without cross-run contamination.
-    caches = ModelCaches()
-    # list of SourcePackages for each component
+    Returns ``(components, packagesets_ftbfs, teams_ftbfs, accumulators)``.
+    """
     components: dict[str, list[SourcePackage]] = {
         "main": [],
         "restricted": [],
         "universe": [],
         "multiverse": [],
     }
-
-    # packagesets for this series
-    packagesets: dict[str, list[str]] = {}
-    packagesets_ftbfs: dict[str, list[SourcePackage]] = {}
     packagesets = fetcher.get_packagesets()
-    for ps_name in packagesets:
-        packagesets_ftbfs[ps_name] = []
-
-    # Get teams
+    packagesets_ftbfs: dict[str, list[SourcePackage]] = {ps: [] for ps in packagesets}
     teams = fetcher.get_teams()
-
-    # Per team list of FTBFS
     teams_ftbfs: dict[str, list[SourcePackage]] = {team: [] for team in teams}
-
-    # Run-wide context and shared accumulators, reused across both the
-    # updates-archive and main archive passes and every build state.
-    ctx = FetchContext(
-        launchpad=launchpad,
-        ubuntu=ubuntu,
-        main_archive=main_archive,
-        ref_series=ref_series,
-        find_tagged_bugs=FIND_TAGGED_BUGS,
-        caches=caches,
-        api_version=API_VERSION,
-        verbose=options.verbose,
-        regressions_only=options.regressions_only,
-    )
     accumulators = ReportAccumulators(
         components=components,
         packagesets=packagesets,
@@ -416,63 +379,61 @@ def main() -> None:
         teams=teams,
         teams_ftbfs=teams_ftbfs,
     )
+    return components, packagesets_ftbfs, teams_ftbfs, accumulators
 
+
+def _run_fetches(
+    fetcher: BaseFetcher,
+    updates_fetcher: BaseFetcher | None,
+    updates_archive: Any,
+    arch_list: list[str],
+    accumulators: ReportAccumulators,
+    ctx: FetchContext,
+) -> None:
+    """Run the updates-archive and main-archive build-state passes."""
     if updates_archive:
         print("Processing updates archive ...", file=sys.stderr)
         # updates_fetcher is set together with updates_archive in
         # setup_fetcher_and_context, so it is non-None here.
         assert updates_fetcher is not None
-        updates_states = (
-            "Successfully built",
-            "Failed to build",
-            "Dependency wait",
-            "Chroot problem",
-            "Failed to upload",
-            "Cancelled build",
-        )
-        for i, state in enumerate(updates_states, start=1):
+        for i, state in enumerate(UPDATES_ARCHIVE_STATES, start=1):
             fetch_pkg_list(
                 state=state,
-                arch_list=default_arch_list,
+                arch_list=arch_list,
                 fetcher=updates_fetcher,
                 accumulators=accumulators,
                 ctx=ctx,
                 is_updates_archive=True,
                 state_index=i,
-                state_count=len(updates_states),
+                state_count=len(UPDATES_ARCHIVE_STATES),
             )
 
     print("Processing archive ...", file=sys.stderr)
-    archive_states = (
-        "Failed to build",
-        "Dependency wait",
-        "Chroot problem",
-        "Failed to upload",
-        "Cancelled build",
-    )
-    for i, state in enumerate(archive_states, start=1):
+    for i, state in enumerate(ARCHIVE_STATES, start=1):
         fetch_pkg_list(
             state=state,
-            arch_list=default_arch_list,
+            arch_list=arch_list,
             fetcher=fetcher,
             accumulators=accumulators,
             ctx=ctx,
             state_index=i,
-            state_count=len(archive_states),
+            state_count=len(ARCHIVE_STATES),
         )
 
-    if options.notice_file:
-        with open(options.notice_file) as f:
-            notice = f.read()
-    else:
-        notice = None
 
-    generated_info += datetime.now(timezone.utc).strftime("  /  Finished: %Y-%m-%d %X")
-
-    # ── Step 1: Serialize aggregated data to JSON ────────────────────────────
-    out_dir = os.path.abspath(options.output_dir if options.output_dir is not None else os.getcwd())
-
-    meta = {
+def _build_meta(
+    options: Any,
+    archive: Any,
+    updates_archive: Any,
+    main_archive: Any,
+    series: Any,
+    archs_by_archive: dict[str, list[str]],
+    arch_list: list[str],
+    notice: str | None,
+    generated_info: str,
+) -> dict:
+    """Build the metadata dict serialized alongside the report data."""
+    return {
         "name": options.name,
         "generated": generated_info,
         "archive": {"name": archive.name, "displayname": archive.displayname},
@@ -488,37 +449,113 @@ def main() -> None:
         ),
         "series": {"name": series.name, "fullseriesname": series.fullseriesname},
         "archs_by_archive": archs_by_archive,
-        "arch_list": default_arch_list,
+        "arch_list": arch_list,
         "notice": notice,
         "release_only": bool(options.release_only),
         "ref_series": options.ref_series,
     }
+
+
+def main() -> None:
+    """Main entry point for the FTBFS report generator."""
+    parser = _build_parser()
+    options = parser.parse_args()
+    args = options.args
+
+    # Validate positional args per mode
+    if options.ppa_spec:
+        if len(args) < 2:
+            parser.error("PPA mode needs at least 2 arguments: <series> <arch> [<arch> ...]")
+    elif options.dummy_fixture:
+        if len(args) < 2:
+            parser.error("Dummy mode needs at least 2 arguments: <series> <arch> [<arch> ...]")
+    else:
+        if len(args) < 3:
+            parser.error("Need at least 3 arguments: <archive> <series> <arch> [<arch> ...]")
+
+    # Login to Launchpad only if not in dummy mode (dummy mode uses mock objects)
+    if options.dummy_fixture:
+        launchpad = None
+        ubuntu = None
+    else:
+        launchpad = Launchpad.login_anonymously("qa-ftbfs", LP_SERVICE, version=API_VERSION)
+        ubuntu = launchpad.distributions["ubuntu"]
+
+    result = setup_fetcher_and_context(options, args, launchpad, ubuntu, API_VERSION)
+    if result is None:
+        return
+
+    archs_by_archive, default_arch_list = _classify_archs(result.series, result.arch_args)
+
+    generated_info = datetime.now(timezone.utc).strftime("Started: %Y-%m-%d %X")
+    print(f"Generating FTBFS for {result.series.fullseriesname}", file=sys.stderr)
+
+    # Per-run model caches, held as an instance rather than module globals so
+    # the pipeline is reusable in-process without cross-run contamination.
+    caches = ModelCaches()
+    components, packagesets_ftbfs, teams_ftbfs, accumulators = _init_accumulators(result.fetcher)
+
+    ctx = FetchContext(
+        launchpad=result.launchpad,
+        ubuntu=result.ubuntu,
+        main_archive=result.main_archive,
+        ref_series=result.ref_series,
+        find_tagged_bugs=FIND_TAGGED_BUGS,
+        caches=caches,
+        api_version=API_VERSION,
+        verbose=options.verbose,
+        regressions_only=options.regressions_only,
+    )
+
+    _run_fetches(
+        result.fetcher,
+        result.updates_fetcher,
+        result.updates_archive,
+        default_arch_list,
+        accumulators,
+        ctx,
+    )
+
+    if options.notice_file:
+        with open(options.notice_file) as f:
+            notice = f.read()
+    else:
+        notice = None
+
+    generated_info += datetime.now(timezone.utc).strftime("  /  Finished: %Y-%m-%d %X")
+
+    # ── Step 1: Serialize aggregated data to JSON ────────────────────────────
+    out_dir = os.path.abspath(options.output_dir if options.output_dir is not None else os.getcwd())
+
+    meta = _build_meta(
+        options,
+        result.archive,
+        result.updates_archive,
+        result.main_archive,
+        result.series,
+        archs_by_archive,
+        default_arch_list,
+        notice,
+        generated_info,
+    )
 
     json_path = os.path.join(out_dir, f"{options.name}.json")
     print("Writing JSON data file...", file=sys.stderr)
     write_json(serialize_report(components, packagesets_ftbfs, teams_ftbfs, meta), json_path)
 
     if options.json_only:
-        GREEN = "\033[32m"
-        CYAN = "\033[36m"
-        BOLD = "\033[1m"
-        RESET = "\033[0m"
-        CHECK = "\u2714"
-        print()
-        print(f"{BOLD}{GREEN}{CHECK}  Data aggregation complete!{RESET}")
-        print(f"   {CYAN}JSON{RESET}   {json_path}")
-        print()
+        print_summary("Data aggregation complete!", [("JSON", json_path)])
         return
 
     # ── Step 2: Render HTML and CSV from in-memory objects ───────────────────
     print("Generating HTML page...", file=sys.stderr)
     generate_page(
         options.name,
-        archive,
-        updates_archive,
-        series,
+        result.archive,
+        result.updates_archive,
+        result.series,
         archs_by_archive,
-        main_archive,
+        result.main_archive,
         components,
         packagesets_ftbfs,
         teams_ftbfs,
@@ -534,21 +571,11 @@ def main() -> None:
 
     html_path = os.path.join(out_dir, f"{options.name}.html")
     csv_path = os.path.join(out_dir, f"{options.name}.csv")
-
-    GREEN = "\033[32m"
-    CYAN = "\033[36m"
-    BOLD = "\033[1m"
-    RESET = "\033[0m"
-    CHECK = "\u2714"
-
-    print()
-    print(f"{BOLD}{GREEN}{CHECK}  Report generation complete!{RESET}")
-    print(f"   {CYAN}JSON{RESET}   {json_path}")
-    print(f"   {CYAN}HTML{RESET}   {html_path}")
-    print(f"   {CYAN}CSV{RESET}    {csv_path}")
-    for asset in sorted(os.listdir(os.path.join(os.path.dirname(__file__), "html"))):
-        print(f"   {CYAN}ASSET{RESET}  {os.path.join(out_dir, asset)}")
-    print()
+    print_summary(
+        "Report generation complete!",
+        [("JSON", json_path), ("HTML", html_path), ("CSV", csv_path)],
+        out_dir,
+    )
 
 
 if __name__ == "__main__":

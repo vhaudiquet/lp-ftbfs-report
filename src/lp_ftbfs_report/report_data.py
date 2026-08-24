@@ -168,6 +168,43 @@ def read_json(path: str) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
+# ---------------------------------------------------------------------------
+# Terminal output helpers (shared by build_status.py and render.py)
+# ---------------------------------------------------------------------------
+
+# Directory containing the bundled HTML assets (style.css, filters.js, ...).
+# Both entry-point modules live in the same package directory, so __file__
+# here resolves to the same path as it would from build_status.py or render.py.
+_HTML_ASSET_DIR = os.path.join(os.path.dirname(__file__), "html")
+
+
+def print_summary(
+    message: str,
+    paths: list[tuple[str, str]],
+    out_dir: str | None = None,
+) -> None:
+    """Print a coloured summary of generated output files.
+
+    Args:
+        message: Header line, e.g. ``"Report generation complete!"``.
+        paths: List of ``(label, path)`` tuples for each output file.
+        out_dir: When given, also list each HTML asset copied into it.
+    """
+    GREEN = "\033[32m"
+    CYAN = "\033[36m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+    CHECK = "\u2714"
+
+    print()
+    print(f"{BOLD}{GREEN}{CHECK}  {message}{RESET}")
+    for label, path in paths:
+        print(f"   {CYAN}{label:<5}{RESET}  {path}")
+    if out_dir is not None:
+        for asset in sorted(os.listdir(_HTML_ASSET_DIR)):
+            print(f"   {CYAN}ASSET{RESET}  {os.path.join(out_dir, asset)}")
+    print()
+
 
 # ---------------------------------------------------------------------------
 # Lightweight proxy classes used during the render step

@@ -35,7 +35,7 @@ from argparse import ArgumentParser
 
 from lp_ftbfs_report.csv_generator import generate_csvfile
 from lp_ftbfs_report.html_generator import generate_page
-from lp_ftbfs_report.report_data import deserialize_report, read_json
+from lp_ftbfs_report.report_data import deserialize_report, print_summary, read_json
 
 
 def main() -> None:
@@ -90,23 +90,13 @@ def main() -> None:
     print("Generating CSV file...")
     generate_csvfile(name, components, output_dir=out_dir)
 
-    # ── Summary ──────────────────────────────────────────────────────────────
-    GREEN = "\033[32m"
-    CYAN = "\033[36m"
-    BOLD = "\033[1m"
-    RESET = "\033[0m"
-    CHECK = "\u2714"
-
     html_path = os.path.join(out_dir, f"{name}.html")
     csv_path = os.path.join(out_dir, f"{name}.csv")
-
-    print()
-    print(f"{BOLD}{GREEN}{CHECK}  Report generation complete!{RESET}")
-    print(f"   {CYAN}HTML{RESET}   {html_path}")
-    print(f"   {CYAN}CSV{RESET}    {csv_path}")
-    for asset in sorted(os.listdir(os.path.join(os.path.dirname(__file__), "html"))):
-        print(f"   {CYAN}ASSET{RESET}  {os.path.join(out_dir, asset)}")
-    print()
+    print_summary(
+        "Report generation complete!",
+        [("HTML", html_path), ("CSV", csv_path)],
+        out_dir,
+    )
 
 
 if __name__ == "__main__":
